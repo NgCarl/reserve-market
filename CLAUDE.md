@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étape 1 du §13 terminée** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte), ESLint, Express et morgan. `src/server.ts` n'existe pas encore (étape 2) : `dev`, `build` et `start` échouent d'ici là. Pas encore de `frontend/`, aucun test automatisé.
+**Étapes 1 et 2 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express et l'authentification du personnel. Pas encore de `frontend/`, aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -18,15 +18,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm install && npm run db:generate   # le client Prisma généré n'est pas commité
 npm run db:generate   # après toute modification de prisma/schema.prisma
 npm run db:migrate    # crée et applique une migration en dev, puis régénère le client
-npm run db:seed       # insère la carte ; ignoré si la base contient déjà un restaurant
+npm run db:seed       # carte si aucun restaurant, admin si son email n'existe pas (SEED_ADMIN_* dans .env)
+npm run db:deploy     # applique les migrations sans en créer (déploiement)
 npm run db:reset      # vide la base et rejoue les migrations (Prisma 7 ne relance pas le seed)
 npm run db:studio     # interface web de la base
 npm run typecheck     # tsc --noEmit
 npm run lint          # ESLint (typescript-eslint + @stylistic)
 npm run dev           # serveur en rechargement automatique (tsx watch)
-npm run build         # compile src/ vers dist/ (tsconfig.build.json)
-npm run start         # lance dist/server.js
-npm run build:ui      # build du frontend, copié dans backend/public
+npm run build         # compile src/ vers build/ (tsconfig.build.json)
+npm run start         # lance build/index.js
+npm run build:ui      # build du frontend, copié dans backend/dist
 ```
 
 ### Points techniques non évidents
@@ -37,6 +38,16 @@ npm run build:ui      # build du frontend, copié dans backend/public
 - **Contraintes CHECK écrites à la main** dans la migration `init` : prix ≥ 0, quantité > 0, annulation motivée, encaissement complet, mode de paiement seulement sur une addition. Toute contrainte de ce type passe par `prisma migrate dev --create-only`, puis édition du SQL avant application.
 - **Modèle de commande** : le statut est porté par `LigneCommande`, pour que le bar et la cuisine avancent indépendamment. Une taille est une `OptionVariante` dont le `supplement` s'ajoute au prix de base du plat. Un addon commandé devient une ligne à part, qui suit son propre poste.
 - npm 11 bloque les scripts d'installation de `@prisma/engines` et `esbuild`. Sans effet constaté : `generate`, `migrate` et `tsx` fonctionnent.
+- **Authentification**, inspirée de `burakorkmez/mern-advanced-auth` (MIT) et corrigée :
+  - **Jeton** : JWT HS256 dans un cookie `session` (`httpOnly`, `sameSite: strict`, `secure` en production), durée 12 h.
+  - **Utilisateur** : relu en base à chaque requête, donc un compte désactivé ou un rôle modifié prend effet immédiatement.
+  - **Mots de passe** : 8 caractères minimum, dont une majuscule et un chiffre, 72 octets maximum (au-delà, bcrypt tronque). Hachés avec `bcryptjs`, coût 10 (`src/lib/password.ts`). `bcryptjs` et non `bcrypt` : le paquet natif a besoin de ses scripts d'installation, que npm 11 bloque.
+  - **Point d'entrée** : `src/index.ts`, avec `import 'dotenv/config'` en première ligne. En ESM, les imports sont évalués dans l'ordre : `.env` est donc chargé avant `src/lib/env.ts`, qui valide les variables.
+  - **Connexion** : même message et même temps de réponse que l'email existe ou non.
+  - **Suspension progressive** (`src/services/tentatives.service.ts`), par couple email + IP : 3 échecs de suite suspendent la connexion 15 minutes, chaque série de 3 échecs suivante 30 minutes. Une connexion réussie remet tout à zéro. Suivi en mémoire, perdu au redémarrage.
+  - **Filet par IP** : 30 échecs par IP sur 15 minutes, via `express-rate-limit`. `TRUST_PROXY_HOPS=1` sur Render, sinon toutes les requêtes semblent venir de la même IP.
+  - **Écartés volontairement** : inscription publique (seul un admin crée les comptes : `POST /api/utilisateurs`), vérification d'email et mot de passe oublié par email (pas de service d'envoi d'emails en v1).
+- **Utilisateur connecté** : `res.locals.utilisateur`, typé dans `src/types/express.d.ts`. Dans un contrôleur, le lire avec `utilisateurConnecte(res)`.
 
 Le dépôt est `reserve-market/`. Son dossier parent (`../`) est un espace de travail **hors git** qui contient les références qui ne doivent jamais entrer dans le dépôt :
 
@@ -104,7 +115,7 @@ BASE        PostgreSQL (Neon en démo, VPS ensuite)
 
 MÉDIAS      Cloudinary (transformation à la volée, WebP)
 
-DEPLOY      Build front → backend/public/ servi en statique par Express
+DEPLOY      Build front → backend/dist/ servi en statique par Express
             Un seul service. Render (free) en phase démo.
 ```
 
@@ -164,16 +175,16 @@ reserve-market/
     │   ├── schemas/          # schémas Zod
     │   ├── sockets/          # handlers Socket.io
     │   ├── lib/              # prisma client, cloudinary
-    │   └── server.ts
-    ├── requests/             # requêtes REST Client (*.rest), une par ressource
+    │   └── index.ts          # point d'entrée : dotenv en première ligne
+    ├── requests/             # requests.rest (REST Client) + .env des identifiants de test
     ├── prisma/
     │   ├── schema.prisma
     │   └── seed.ts
-    ├── dist/                 # backend compilé (tsc) — non commité
-    └── public/               # build du front (vite build) — non commité
+    ├── build/                # backend compilé (tsc) — non commité
+    └── dist/                 # frontend buildé, copié par npm run build:ui — versionné
 ```
 
-**Le build du front va dans `backend/public/`, jamais à la racine de `backend/`.** Express sert en statique tout le dossier qu'on lui donne : pointé sur la racine, il servirait `.env`, `package.json` et `prisma/` à n'importe quel visiteur. Le frontend build dans son propre `frontend/dist/`. `npm run build:ui`, lancé depuis `backend/`, supprime `backend/public/`, lance ce build puis copie le résultat dans `backend/public/`.
+**Le frontend buildé est servi depuis `backend/dist/`**, comme dans le cours Full Stack Open. `npm run build:ui`, lancé depuis `backend/`, supprime `backend/dist/`, build le frontend dans `frontend/dist/`, puis copie ce dossier dans `backend/`. Le backend compilé va donc dans **`build/`**, sinon les deux builds s'écraseraient. Express ne sert que `dist/`, jamais la racine de `backend/` : il y exposerait `.env`.
 
 **Express n'impose aucune structure : celle-ci est obligatoire.** Un contrôleur ne contient jamais de requête Prisma. Un service ne connaît ni `req` ni `res`.
 
@@ -289,7 +300,7 @@ Ne jamais implémenter un FIFO brut : le cuisinier préparerait un jus avant un 
 
 **Lint** : `npm run lint` doit passer avant chaque commit. Style imposé par `eslint.config.js` : indentation de 2 espaces, guillemets simples (doubles admis pour éviter d'échapper une apostrophe), pas de point-virgule, `===` obligatoire.
 
-**Requêtes HTTP avec REST Client** (extension VS Code `humao.rest-client`). Chaque endpoint créé ou modifié a sa requête dans `backend/requests/<ressource>.rest`, une requête par cas (succès et erreurs de validation), séparées par `###`. L'URL de base est une variable de fichier : `@baseUrl = http://localhost:3001/api`. Les jetons JWT et mots de passe ne sont **jamais écrits en dur** : `{{$dotenv NOM}}` les lit dans `backend/requests/.env`, ignoré par git.
+**Requêtes HTTP avec REST Client** (extension VS Code `humao.rest-client`). Toutes les requêtes sont dans un seul fichier, `backend/requests/requests.rest`, **volontairement léger** : une requête par endpoint (le cas nominal), séparées par `###` avec un titre court. Un cas d'erreur ne s'y ajoute que s'il sert régulièrement. Pas de commentaires superflus. L'URL de base est une variable de fichier : `@baseUrl = http://localhost:3001/api`. Les jetons JWT et mots de passe ne sont **jamais écrits en dur** : `{{$dotenv NOM}}` les lit dans `backend/requests/.env`, ignoré par git.
 
 ---
 
@@ -308,26 +319,21 @@ Ne jamais implémenter un FIFO brut : le cuisinier préparerait un jus avant un 
 app.use('/api', apiRoutes)
 app.use('/api', apiNotFound)              // /api inconnu → 404 JSON, jamais index.html
 
-// Assets hashés : cache 1 an ; fichier absent → 404 (pas de HTML servi à la place d'un .js)
-// publicDir = backend/public (build du front), jamais la racine de backend/
-app.use('/assets', express.static(path.join(publicDir, 'assets'), {
-  immutable: true, maxAge: '1y', fallthrough: false,
-}))
-// Racine de public/ (sw.js, manifest, icônes) : cache par défaut (max-age=0), sinon le service worker ne se met plus à jour
-app.use(express.static(publicDir, { index: false }))
+// Frontend buildé (backend/dist), jamais la racine de backend/
+const dist = path.resolve(import.meta.dirname, '../dist')
+app.use(express.static(dist))
 
-// Fallback SPA. Express 5 : `*` doit être nommé, et `{}` fait aussi correspondre `/`
+// Fallback SPA pour React Router. Express 5 : `*` doit être nommé, et `{}` fait aussi correspondre `/`
 app.get('/{*splat}', (_req, res) => {
-  res.set('Cache-Control', 'no-cache')
-  res.sendFile(path.join(publicDir, 'index.html'))
+  res.sendFile(path.join(dist, 'index.html'))
 })
 
 app.use(errorHandler)                     // toujours en dernier
 ```
 
-**Cache** : `public/assets/*` (noms hashés) cachés un an ; `index.html` jamais caché.
+**Cache** : réglages par défaut d'`express.static` pour l'instant (revalidation par ETag). Le cache long des fichiers hashés sera ajouté à l'étape 4, avec la performance de la page menu (§8), quand le frontend existera.
 
-**`backend/dist/` et `backend/public/` ne sont pas commités** (`.gitignore`). Les deux builds se font au déploiement.
+**`backend/build/` n'est pas commité.** `backend/dist/`, le frontend buildé, l'est, comme dans le cours Full Stack Open.
 
 ### Phase production — VPS
 

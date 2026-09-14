@@ -1,8 +1,8 @@
 # Dépendances
 node_modules/
 
-# Builds
-backend/public/
+# Builds (backend/dist, copie du frontend buildé, reste versionné)
+backend/build/
 frontend/dist/
 
 # Secrets

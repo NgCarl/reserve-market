@@ -9,7 +9,7 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
-    "outDir": "dist"
+    "outDir": "build"
   },
   "include": ["src", "prisma", "prisma.config.ts"]
 }

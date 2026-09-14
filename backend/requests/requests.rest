@@ -1,0 +1,44 @@
+# Prérequis : npm run dev dans backend/. Identifiants lus dans requests/.env.
+
+@baseUrl = http://localhost:3001/api
+
+### Connexion admin
+
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{$dotenv ADMIN_EMAIL}}",
+  "motDePasse": "{{$dotenv ADMIN_MOT_DE_PASSE}}"
+}
+
+### Session courante
+GET {{baseUrl}}/auth/check-auth
+
+### Liste du personnel (admin)
+GET {{baseUrl}}/utilisateurs
+
+### Création d'un compte (admin)
+
+POST {{baseUrl}}/utilisateurs
+Content-Type: application/json
+
+{
+  "nom": "Serveur de test",
+  "email": "{{$dotenv SERVEUR_EMAIL}}",
+  "motDePasse": "{{$dotenv SERVEUR_MOT_DE_PASSE}}",
+  "role": "SERVEUR"
+}
+
+### Connexion avec un mauvais mot de passe (3 échecs : suspension 15 min)
+
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{$dotenv ADMIN_EMAIL}}",
+  "motDePasse": "Mauvais123"
+}
+
+### Déconnexion
+POST {{baseUrl}}/auth/logout

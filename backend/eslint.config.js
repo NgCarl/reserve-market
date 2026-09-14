@@ -5,7 +5,7 @@ import stylistic from '@stylistic/eslint-plugin'
 
 export default [
   {
-    ignores: ['dist/**', 'public/**', 'src/generated/**'],
+    ignores: ['dist/**', 'build/**', 'src/generated/**'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

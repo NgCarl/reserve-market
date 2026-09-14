@@ -1,15 +1,29 @@
 import 'dotenv/config'
 import { randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { z } from 'zod'
 import { PrismaClient } from '../src/generated/prisma/client.js'
+import { hacherMotDePasse } from '../src/lib/password.js'
+import { nouvelUtilisateurSchema } from '../src/schemas/utilisateur.schema.js'
 import { carte, restaurantSeed, tablesSeed, type PlatSeed } from './data/carte.js'
 
-const connectionString = process.env.DATABASE_URL
-if (!connectionString) {
-  throw new Error('DATABASE_URL manquant : copier backend/.env.example en backend/.env')
+// Mêmes règles que la création d'un compte par l'API (email valide, mot de passe de 12 caractères minimum).
+const configSeed = z
+  .object({
+    DATABASE_URL: z.string({ error: 'manquant : copier backend/.env.example en backend/.env' }).min(1),
+    SEED_ADMIN_NOM: nouvelUtilisateurSchema.shape.nom,
+    SEED_ADMIN_EMAIL: nouvelUtilisateurSchema.shape.email,
+    SEED_ADMIN_MOT_DE_PASSE: nouvelUtilisateurSchema.shape.motDePasse,
+  })
+  .safeParse(process.env)
+
+if (!configSeed.success) {
+  console.error(`Configuration du seed invalide dans backend/.env :\n${z.prettifyError(configSeed.error)}`)
+  process.exit(1)
 }
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) })
+const config = configSeed.data
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: config.DATABASE_URL }) })
 
 // 128 bits d'aléa, encodés pour une URL : impossible à deviner (CLAUDE.md §6).
 const genererJeton = (): string => randomBytes(16).toString('base64url')
@@ -39,13 +53,8 @@ function prixEtVariantes(plat: PlatSeed) {
   }
 }
 
-async function main(): Promise<void> {
-  if ((await prisma.restaurant.count()) > 0) {
-    console.info('Base déjà initialisée, seed ignoré. Pour repartir de zéro : npm run db:reset puis npm run db:seed')
-    return
-  }
-
-  await prisma.$transaction(
+async function creerCarte(): Promise<{ id: number }> {
+  const restaurant = await prisma.$transaction(
     async (tx) => {
       const restaurant = await tx.restaurant.create({ data: restaurantSeed })
 
@@ -77,6 +86,7 @@ async function main(): Promise<void> {
           },
         })
       }
+      return restaurant
     },
     { timeout: 60_000 },
   )
@@ -86,7 +96,37 @@ async function main(): Promise<void> {
     prisma.plat.count(),
     prisma.table.count(),
   ])
-  console.info(`Seed terminé : ${categories} catégories, ${plats} plats, ${tables} tables.`)
+  console.info(`Carte créée : ${categories} catégories, ${plats} plats, ${tables} tables.`)
+  return restaurant
+}
+
+async function creerAdmin(restaurantId: number): Promise<void> {
+  const existant = await prisma.utilisateur.findUnique({
+    where: { email: config.SEED_ADMIN_EMAIL },
+    select: { id: true },
+  })
+  if (existant) {
+    console.info(`Admin ${config.SEED_ADMIN_EMAIL} déjà présent, inchangé.`)
+    return
+  }
+  await prisma.utilisateur.create({
+    data: {
+      restaurantId,
+      nom: config.SEED_ADMIN_NOM,
+      email: config.SEED_ADMIN_EMAIL,
+      role: 'ADMIN',
+      motDePasseHash: await hacherMotDePasse(config.SEED_ADMIN_MOT_DE_PASSE),
+    },
+  })
+  console.info(`Admin créé : ${config.SEED_ADMIN_EMAIL}`)
+}
+
+// Rejouable : la carte n'est créée que sur une base vide, l'admin seulement s'il n'existe pas.
+async function main(): Promise<void> {
+  const existant = await prisma.restaurant.findFirst({ select: { id: true } })
+  if (existant) console.info('Carte déjà présente, inchangée.')
+  const restaurant = existant ?? (await creerCarte())
+  await creerAdmin(restaurant.id)
 }
 
 try {
