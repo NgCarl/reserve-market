@@ -49,6 +49,18 @@ export function urlPhoto(publicId: string | null): string | null {
   return cloudinary.url(publicId, { width: 400, crop: 'limit', quality: 'auto', fetch_format: 'auto' })
 }
 
+/** Vignette carrée recadrée sur le sujet : puces de catégorie (80 px), cartes de compléments (200 px). */
+export function urlVignette(publicId: string | null, taille = 80): string | null {
+  if (!publicId) return null
+  return cloudinary.url(publicId, { width: taille, height: taille, crop: 'fill', gravity: 'auto', quality: 'auto', fetch_format: 'auto' })
+}
+
+/** Aperçu de 24 px très flouté (quelques centaines d'octets), affiché pendant le chargement de la photo (§8). */
+export function urlPhotoFloue(publicId: string | null): string | null {
+  if (!publicId) return null
+  return cloudinary.url(publicId, { width: 24, crop: 'limit', quality: 30, effect: 'blur:200', fetch_format: 'auto' })
+}
+
 /** Suppression sans bloquer la réponse : une photo orpheline sur Cloudinary ne casse rien. */
 export function supprimerPhoto(publicId: string): void {
   cloudinary.uploader

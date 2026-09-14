@@ -1,6 +1,7 @@
 // Toujours en premier : charge backend/.env avant que les autres modules lisent process.env.
 import 'dotenv/config'
 import path from 'node:path'
+import compression from 'compression'
 import cookieParser from 'cookie-parser'
 import express from 'express'
 import morgan from 'morgan'
@@ -19,6 +20,8 @@ app.set('trust proxy', env.TRUST_PROXY_HOPS)
 
 // Formats de log sans corps de requête : les mots de passe n'apparaissent jamais dans les logs.
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'))
+// gzip des réponses : le menu passe de 22 Ko à 3 Ko sur la data du client (CLAUDE.md §8).
+app.use(compression())
 app.use(express.json())
 app.use(cookieParser())
 

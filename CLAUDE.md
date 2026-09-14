@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étapes 1 à 3 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel et la gestion de la carte (catégories, plats, photos Cloudinary). Pas encore de `frontend/`, aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
+**Étapes 1 à 3 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel et la gestion de la carte (catégories, plats, photos Cloudinary). `frontend/` (étape 4) contient la page menu publique `/menu/:jeton` et le panier ; les autres rôles sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -29,6 +29,17 @@ npm run build         # compile src/ vers build/ (tsconfig.build.json)
 npm run start         # lance build/index.js
 npm run build:ui      # build du frontend, copié dans backend/dist
 ```
+
+### Commandes (depuis `frontend/`)
+
+```bash
+npm run dev           # Vite sur http://localhost:5173 ; /api relayé vers le backend (npm run dev dans backend/)
+npm run build         # tsc -b puis vite build → frontend/dist
+npm run typecheck     # tsc -b
+npm run lint          # ESLint, même style que le backend
+```
+
+Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est `TABLE_JETON` dans `backend/requests/.env`.
 
 ### Points techniques non évidents
 
@@ -54,7 +65,29 @@ npm run build:ui      # build du frontend, copié dans backend/dist
   3. Il transmet ensuite `public_id`, `version` et `signature` de la réponse Cloudinary à `PUT /api/plats/:id/photo`, qui vérifie la signature avant d'enregistrer.
   - Photos rangées dans le dossier `reserve-market/plats` (paramètre `asset_folder`, dossiers dynamiques), stockées à 1600 px maximum. L'API renvoie une URL d'affichage `f_auto,q_auto,w_400`.
   - Le SDK ne type pas `verify_api_response_signature` : la vérification est réimplémentée, avec comparaison en temps constant.
-- **Carte** : les tailles, extras et addons d'un plat s'envoient en listes complètes, qui remplacent les précédentes. Une catégorie ne s'archive que si elle ne contient plus de plat actif.
+- **Carte** : les tailles, extras et addons d'un plat s'envoient en listes complètes, qui remplacent les précédentes. Une catégorie ne s'archive que si elle ne contient plus de plat actif. Un plat avec des tailles ne peut pas être addon : un addon s'ajoute au panier sans choix.
+- **Frontend : React Router 8 en mode data.**
+  - Chaque rôle est une route `lazy` : le client ne télécharge ni la cuisine, ni la saisie serveur, ni le back-office.
+  - Le menu est chargé par `routes/client/menu.loader.ts` avant l'affichage de la page. Pendant ce temps, la route affiche `HydrateFallback`, le squelette.
+  - Un squelette en HTML et CSS pur est aussi dans `index.html` : il est visible avant même le téléchargement du JavaScript.
+- **Budget §8, mesuré au build** : 127,6 Ko gzip de JavaScript pour `/menu/:jeton` (95,7 Ko pour l'entrée, surtout React et React Router ; 29,8 Ko pour la page). Remesurer après chaque ajout de dépendance côté client.
+  - Police du téléphone (Geist retirée), logo WebP de 6 Ko.
+  - Photos chargées au défilement, avec un aperçu flouté (`photoFloueUrl`), et un bouton « sans photos ».
+  - Le backend compresse ses réponses en gzip (`compression`).
+- **Panier** (`stores/panier.ts`, Zustand avec `persist`) :
+  - Rattaché au jeton de la table ; vérifié quand il est relu depuis le stockage.
+  - `cleIdempotence` est régénérée après chaque envoi de commande.
+  - Les prix du panier sont indicatifs : le serveur recalcule tout à la commande.
+- **shadcn/ui** (style `radix-nova`) : `cn` vient du paquet officiel `cn`, et non de `clsx` + `tailwind-merge`. Après chaque `shadcn add`, lancer `npx eslint . --fix` pour remettre les fichiers au style du projet.
+- **Photos de démonstration** : venues de Wikimedia Commons, uniquement sous licences autorisant l'usage commercial (CC0, domaine public, CC BY, CC BY-SA). Chaque photo a été choisie à l'œil : jamais la bouteille d'une autre marque ; sans photo fiable, l'article reste sans photo.
+  - Les licences CC BY et CC BY-SA imposent de citer l'auteur. Le crédit est enregistré dans `Plat.photoCredit` et affiché sous la photo, dans la fiche du plat.
+  - Journal complet (fichier source, auteur, licence, `publicId` Cloudinary) : `backend/prisma/data/credits-photos.json`.
+  - Photos à remplacer par les vraies photos du restaurant depuis le back-office. Une photo remplacée doit voir son `photoCredit` remis à `null`.
+  - `definirPhoto` et `retirerPhoto` remettent `photoCredit` à `null` : un crédit de démonstration ne suit jamais une photo du restaurant.
+- **Groupes de choix** (`GroupeVariante`) : `affichage` `TUILES` (tailles, parfums) ou `LISTE` (liste déroulante, par exemple l'accompagnement). Une option peut avoir sa photo (`OptionVariante.imagePublicId`), affichée dans sa tuile ; l'admin la renseigne dans les listes envoyées à `POST`/`PATCH /api/plats`.
+  - Exemples adaptés au poste : dans la fiche, l'exemple d'instruction dépend du poste du plat (bar : glaçons ; cuisine : cuisson).
+  - Démonstration rejouable (`prisma/garnitures.ts`, lancé par le seed) : accompagnement au choix sur les grillades, le poulet pané et la côte de porc ; parfum Vanille/Chocolat sur les deux glaces personnalisables.
+  - Upload côté serveur avec le SDK : passer `transformation` en objet (`{ crop: 'limit', width: 1600 }`). Une chaîne y est lue comme le nom d'une transformation enregistrée, contrairement à l'envoi signé depuis le navigateur.
 
 Le dépôt est `reserve-market/`. Son dossier parent (`../`) est un espace de travail **hors git** qui contient les références qui ne doivent jamais entrer dans le dépôt :
 
@@ -105,7 +138,7 @@ Le produit **FoodScan** "https://preview.codecanyon.net/item/foodscan-qr-code-re
 ## 3. Stack technique — figée
 
 ```
-FRONTEND    React 18 + Vite + TypeScript
+FRONTEND    React 19 + Vite 8 + TypeScript 6
             Tailwind CSS + shadcn/ui
             React Router (routes protégées par rôle)
             Zustand (état du panier)
@@ -125,6 +158,8 @@ MÉDIAS      Cloudinary (transformation à la volée, WebP)
 DEPLOY      Build front → backend/dist/ servi en statique par Express
             Un seul service. Render (free) en phase démo.
 ```
+
+**React 19 et non 18** (décision du 2026-09-14) : React Router 8 exige React ≥ 19.2.7, et les composants actuels de shadcn/ui n'utilisent plus `forwardRef`, dont React 18 a besoin pour transmettre une `ref`.
 
 ---
 

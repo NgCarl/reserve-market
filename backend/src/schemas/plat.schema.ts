@@ -1,14 +1,22 @@
 import { z } from 'zod'
+import { AffichageGroupe } from '../generated/prisma/client.js'
 import { auMoinsUnChamp, montantSchema, nomsUniques, texteSchema } from './commun.schema.js'
 
 const optionVarianteSchema = z.strictObject({
   nom: texteSchema('Nom de l\'option', 50),
   supplement: montantSchema,
+  /**
+   * Photo de l'option (parfum vanille…), déjà envoyée sur Cloudinary par l'envoi signé
+   * (POST /api/plats/photo/signature). Route réservée à l'ADMIN : on contrôle le format, pas l'origine.
+   */
+  imagePublicId: z.string().regex(/^[\w/-]{1,255}$/, { error: 'Identifiant de photo invalide' }).nullable().optional(),
 })
 
 /** Choix unique obligatoire, par exemple « Taille » : 1/4, 1/2, Entier. */
 const groupeVarianteSchema = z.strictObject({
   nom: texteSchema('Nom du groupe', 50),
+  /** TUILES (tailles) par défaut, LISTE pour une liste déroulante (accompagnement). */
+  affichage: z.enum(AffichageGroupe, { error: 'Affichage attendu : TUILES ou LISTE' }).optional(),
   options: z
     .array(optionVarianteSchema)
     .min(1, { error: 'Au moins une option' })

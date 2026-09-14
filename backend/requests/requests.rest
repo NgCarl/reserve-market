@@ -2,6 +2,9 @@
 
 @baseUrl = http://localhost:3001/api
 
+### Menu d'une table (public, sans connexion)
+GET {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}
+
 ### Connexion admin
 
 POST {{baseUrl}}/auth/login

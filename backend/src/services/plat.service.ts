@@ -2,7 +2,7 @@ import type { Prisma } from '../generated/prisma/client.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import type { ModificationPlat, NouveauPlat, PhotoPlat } from '../schemas/plat.schema.js'
-import { photoAuthentique, supprimerPhoto, urlPhoto } from './photo.service.js'
+import { photoAuthentique, supprimerPhoto, urlPhoto, urlVignette } from './photo.service.js'
 
 const selectPlat = {
   id: true,
@@ -17,7 +17,12 @@ const selectPlat = {
   ordre: true,
   groupesVariantes: {
     orderBy: { ordre: 'asc' },
-    select: { id: true, nom: true, options: { orderBy: { ordre: 'asc' }, select: { id: true, nom: true, supplement: true } } },
+    select: {
+      id: true,
+      nom: true,
+      affichage: true,
+      options: { orderBy: { ordre: 'asc' }, select: { id: true, nom: true, supplement: true, imagePublicId: true } },
+    },
   },
   extras: { orderBy: { ordre: 'asc' }, select: { id: true, nom: true, prix: true } },
   addons: {
@@ -29,10 +34,14 @@ const selectPlat = {
 
 type PlatBrut = Prisma.PlatGetPayload<{ select: typeof selectPlat }>
 
-function formater({ imagePublicId, addons, ...plat }: PlatBrut) {
+function formater({ imagePublicId, addons, groupesVariantes, ...plat }: PlatBrut) {
   return {
     ...plat,
     photo: imagePublicId ? { publicId: imagePublicId, url: urlPhoto(imagePublicId) } : null,
+    groupesVariantes: groupesVariantes.map((groupe) => ({
+      ...groupe,
+      options: groupe.options.map((option) => ({ ...option, photoUrl: urlVignette(option.imagePublicId, 160) })),
+    })),
     addons: addons.map((addon) => addon.platPropose),
   }
 }
@@ -43,6 +52,7 @@ export type PlatDetaille = ReturnType<typeof formater>
 const creationVariantes = (groupes: NonNullable<NouveauPlat['groupesVariantes']>) => ({
   create: groupes.map((groupe, ordre) => ({
     nom: groupe.nom,
+    affichage: groupe.affichage,
     ordre,
     options: { create: groupe.options.map((option, ordreOption) => ({ ...option, ordre: ordreOption })) },
   })),
@@ -62,8 +72,11 @@ async function verifierCategorie(restaurantId: number, categorieId: number): Pro
 async function verifierAddons(restaurantId: number, ids: readonly number[], platId?: number): Promise<void> {
   if (platId !== undefined && ids.includes(platId)) throw new ValidationError('Un plat ne peut pas être son propre addon')
   if (ids.length === 0) return
-  const trouves = await prisma.plat.count({ where: { id: { in: [...ids] }, restaurantId, archiveAt: null } })
-  if (trouves !== ids.length) throw new ValidationError('Addon introuvable ou archivé')
+  // Un addon s'ajoute au panier à son prix, sans choix : il ne doit pas avoir de tailles.
+  const trouves = await prisma.plat.count({
+    where: { id: { in: [...ids] }, restaurantId, archiveAt: null, groupesVariantes: { none: {} } },
+  })
+  if (trouves !== ids.length) throw new ValidationError('Addon introuvable, archivé, ou avec des tailles (un addon a un prix unique)')
 }
 
 async function platActif(restaurantId: number, id: number): Promise<{ imagePublicId: string | null }> {
@@ -149,14 +162,15 @@ export async function definirPhoto(restaurantId: number, id: number, photo: Phot
     throw new ValidationError('Photo non reconnue : signature Cloudinary invalide')
   }
   const { imagePublicId: ancienne } = await platActif(restaurantId, id)
-  const plat = await prisma.plat.update({ where: { id }, data: { imagePublicId: photo.publicId }, select: selectPlat })
+  // Photo du restaurant : le crédit d'une éventuelle photo de démonstration ne s'applique plus.
+  const plat = await prisma.plat.update({ where: { id }, data: { imagePublicId: photo.publicId, photoCredit: null }, select: selectPlat })
   if (ancienne && ancienne !== photo.publicId) supprimerPhoto(ancienne)
   return formater(plat)
 }
 
 export async function retirerPhoto(restaurantId: number, id: number): Promise<PlatDetaille> {
   const { imagePublicId: ancienne } = await platActif(restaurantId, id)
-  const plat = await prisma.plat.update({ where: { id }, data: { imagePublicId: null }, select: selectPlat })
+  const plat = await prisma.plat.update({ where: { id }, data: { imagePublicId: null, photoCredit: null }, select: selectPlat })
   if (ancienne) supprimerPhoto(ancienne)
   return formater(plat)
 }

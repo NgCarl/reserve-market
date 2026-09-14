@@ -1,0 +1,1 @@
+import{t as e}from"./index-DO2HREsh.js";import{r as t}from"./panier-C8yGRTvs.js";async function n({params:n}){let r=n.jeton??``,i=await e(`/menu/${encodeURIComponent(r)}`);return t.getState().ouvrirPourTable(r),i}export{n as chargerMenu};

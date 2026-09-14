@@ -34,6 +34,14 @@ enum StatutLigne {
   ANNULEE
 }
 
+/// Présentation d'un groupe de choix dans la fiche du plat.
+enum AffichageGroupe {
+  /// Tuiles défilantes, par exemple les tailles 1/4, 1/2, entier.
+  TUILES
+  /// Liste déroulante, par exemple l'accompagnement : frites de plantain, riz…
+  LISTE
+}
+
 enum SourceCommande {
   CLIENT
   SERVEUR
@@ -135,6 +143,8 @@ model Plat {
   /// Prix de base. Les suppléments de taille s'y ajoutent.
   prix                Int
   imagePublicId       String?
+  /// Auteur et licence d'une photo sous licence libre (CC BY, CC BY-SA), à afficher avec la photo.
+  photoCredit         String?
   disponible          Boolean   @default(true)
   /// null = stock non suivi (plats cuisinés). Sinon décrément atomique (§6).
   stock               Int?
@@ -163,6 +173,7 @@ model GroupeVariante {
   platId Int
   nom    String
   ordre  Int    @default(0)
+  affichage AffichageGroupe @default(TUILES)
 
   plat    Plat             @relation(fields: [platId], references: [id])
   options OptionVariante[]
@@ -177,6 +188,8 @@ model OptionVariante {
   nom        String
   /// Ajouté au prix de base du plat. 0 pour l'option de base.
   supplement Int    @default(0)
+  /// Photo de l'option (Cloudinary), affichée dans sa tuile : parfum vanille, chocolat…
+  imagePublicId String?
   ordre      Int    @default(0)
 
   groupe GroupeVariante @relation(fields: [groupeId], references: [id], onDelete: Cascade)

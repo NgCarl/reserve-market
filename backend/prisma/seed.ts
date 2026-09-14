@@ -6,6 +6,8 @@ import { PrismaClient } from '../src/generated/prisma/client.js'
 import { hacherMotDePasse } from '../src/lib/password.js'
 import { nouvelUtilisateurSchema } from '../src/schemas/utilisateur.schema.js'
 import { carte, restaurantSeed, tablesSeed, type PlatSeed } from './data/carte.js'
+import { descriptions } from './data/descriptions.js'
+import { appliquerGarnitures, appliquerParfums } from './garnitures.js'
 
 // Mêmes règles que la création d'un compte par l'API (email valide, mot de passe de 12 caractères minimum).
 const configSeed = z
@@ -78,7 +80,8 @@ async function creerCarte(): Promise<{ id: number }> {
               create: categorie.plats.map((plat, ordre) => ({
                 restaurant: { connect: { id: restaurant.id } },
                 nom: plat.nom,
-                description: plat.description,
+                // Description imprimée sur la carte en priorité, sinon la description provisoire de démonstration.
+                description: plat.description ?? descriptions[`${categorie.nom}|${plat.nom}`],
                 ordre,
                 ...prixEtVariantes(plat),
               })),
@@ -127,6 +130,9 @@ async function main(): Promise<void> {
   if (existant) console.info('Carte déjà présente, inchangée.')
   const restaurant = existant ?? (await creerCarte())
   await creerAdmin(restaurant.id)
+  const { accompagnements } = await appliquerGarnitures(prisma, restaurant.id)
+  const { parfums } = await appliquerParfums(prisma, restaurant.id)
+  console.info(`Démonstration : ${accompagnements} accompagnement(s), ${parfums} choix de parfum ajoutés.`)
 }
 
 try {

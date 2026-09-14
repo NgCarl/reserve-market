@@ -1,0 +1,1 @@
+import{n as e}from"./index-DO2HREsh.js";import{t}from"./PageAVenir-B1tZLogy.js";var n=e();function r(){return(0,n.jsx)(t,{titre:`Écran cuisine`,etape:6})}export{r as CuisinePage};

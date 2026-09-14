@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1556A7" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>Réserve Market</title>
+    <!--
+      Squelette affiché avant le téléchargement du JavaScript (CLAUDE.md §8) : sur un réseau lent,
+      le client voit tout de suite la page se construire. React le remplace dès qu'il démarre.
+    -->
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #ffffff; }
+      .squelette-entete { height: 64px; background: #ffffff; border-bottom: 1px solid #e5e7eb; }
+      .squelette-corps { padding: 16px; display: grid; gap: 12px; }
+      .squelette-bloc { height: 96px; border-radius: 12px; background: linear-gradient(90deg, #e8eaee 25%, #f3f4f6 50%, #e8eaee 75%); background-size: 200% 100%; animation: squelette 1.2s ease-in-out infinite; }
+      .squelette-onglets { height: 36px; border-radius: 999px; width: 70%; }
+      @keyframes squelette { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+      @media (prefers-reduced-motion: reduce) { .squelette-bloc { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="squelette-entete"></div>
+      <div class="squelette-corps" aria-busy="true" aria-label="Chargement du menu">
+        <div class="squelette-bloc squelette-onglets"></div>
+        <div class="squelette-bloc"></div>
+        <div class="squelette-bloc"></div>
+        <div class="squelette-bloc"></div>
+      </div>
+    </div>
+    <noscript>Activez JavaScript pour consulter le menu, ou demandez-le au serveur.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
