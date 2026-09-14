@@ -9,10 +9,11 @@ interface Props {
   onOuvertChange: (ouvert: boolean) => void
   numeroTable: number
   afficherPhotos: boolean
+  onCommander: () => void
 }
 
 /** Panier plein écran (maquette FoodScan « My Cart »). */
-export function PanierSheet({ ouvert, onOuvertChange, numeroTable, afficherPhotos }: Props) {
+export function PanierSheet({ ouvert, onOuvertChange, numeroTable, afficherPhotos, onCommander }: Props) {
   const lignes = usePanier((etat) => etat.lignes)
   const changerQuantite = usePanier((etat) => etat.changerQuantite)
   const articles = nombreArticles(lignes)
@@ -74,13 +75,13 @@ export function PanierSheet({ ouvert, onOuvertChange, numeroTable, afficherPhoto
             <span className="text-lg font-bold text-marque-nuit">Sous-total</span>
             <span className="text-lg font-bold text-emerald-600">{formaterPrix(totalPanier(lignes))}</span>
           </div>
-          {/* L'envoi de la commande arrive à l'étape 5 (création en transaction côté serveur). */}
           <button
             type="button"
-            disabled
+            onClick={onCommander}
+            disabled={lignes.length === 0}
             className="h-14 w-full rounded-full bg-primary text-lg font-bold text-primary-foreground disabled:opacity-40"
           >
-            Passer la commande (bientôt)
+            Passer la commande
           </button>
         </div>
       </SheetContent>

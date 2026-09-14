@@ -1,10 +1,13 @@
 export class ErreurApi extends Error {
   readonly status: number
+  /** Détails renvoyés par le serveur, par exemple les articles devenus indisponibles. */
+  readonly details: unknown
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, details?: unknown) {
     super(message)
     this.name = 'ErreurApi'
     this.status = status
+    this.details = details
   }
 }
 
@@ -25,7 +28,8 @@ export async function requeteApi<T>(chemin: string, init?: RequestInit): Promise
     const message = typeof corps === 'object' && corps !== null && 'message' in corps && typeof corps.message === 'string'
       ? corps.message
       : 'Une erreur est survenue. Réessayez.'
-    throw new ErreurApi(reponse.status, message)
+    const details = typeof corps === 'object' && corps !== null && 'details' in corps ? corps.details : undefined
+    throw new ErreurApi(reponse.status, message, details)
   }
   return (await reponse.json()) as T
 }

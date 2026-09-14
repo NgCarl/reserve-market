@@ -3,7 +3,24 @@
 @baseUrl = http://localhost:3001/api
 
 ### Menu d'une table (public, sans connexion)
+# @name menu
 GET {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}
+
+### Passer une commande (client) : 201, puis 200 si la même clé est renvoyée
+# @name commande
+POST {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}/commandes
+Content-Type: application/json
+
+{
+  "cleIdempotence": "{{$guid}}",
+  "chaise": 1,
+  "lignes": [
+    { "platId": {{menu.response.body.$.categories[0].plats[0].id}}, "quantite": 1, "note": "Bien cuite" }
+  ]
+}
+
+### Suivi de la commande (client)
+GET {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}/commandes/{{commande.response.body.$.commande.id}}
 
 ### Connexion admin
 

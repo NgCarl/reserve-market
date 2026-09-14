@@ -13,3 +13,14 @@ export const limiteurConnexion = rateLimit({
   legacyHeaders: false,
   message: { message: 'Trop de tentatives de connexion depuis cette adresse. Réessayez dans 15 minutes.' },
 })
+
+// Contre les commandes en rafale : 10 envois par table sur 10 minutes. Compté par table (jeton du QR)
+// et non par IP, car tout le restaurant partage souvent la même box.
+export const limiteurCommande = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => `commande:${String(req.params.jeton)}`,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { message: 'Trop de commandes envoyées depuis cette table. Patientez quelques minutes ou appelez le serveur.' },
+})

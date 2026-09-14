@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étapes 1 à 3 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel et la gestion de la carte (catégories, plats, photos Cloudinary). `frontend/` (étape 4) contient la page menu publique `/menu/:jeton` et le panier ; les autres rôles sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
+**Étapes 1 à 5 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel, la gestion de la carte (catégories, plats, photos Cloudinary) et la création de commande par le client. `frontend/` contient la page menu publique `/menu/:jeton`, le panier, la validation (`/menu/:jeton/commande`) et le suivi (`/menu/:jeton/commandes/:id`) ; les autres rôles sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -70,7 +70,7 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - Chaque rôle est une route `lazy` : le client ne télécharge ni la cuisine, ni la saisie serveur, ni le back-office.
   - Le menu est chargé par `routes/client/menu.loader.ts` avant l'affichage de la page. Pendant ce temps, la route affiche `HydrateFallback`, le squelette.
   - Un squelette en HTML et CSS pur est aussi dans `index.html` : il est visible avant même le téléchargement du JavaScript.
-- **Budget §8, mesuré au build** : 127,6 Ko gzip de JavaScript pour `/menu/:jeton` (95,7 Ko pour l'entrée, surtout React et React Router ; 29,8 Ko pour la page). Remesurer après chaque ajout de dépendance côté client.
+- **Budget §8, mesuré au build** : 135,8 Ko gzip de JavaScript pour `/menu/:jeton` (99,7 Ko pour l'entrée, surtout React et React Router ; 21 Ko pour la page, 11,8 Ko de composants Radix, 3 Ko pour les stores). La validation (2,3 Ko) et le suivi (2,8 Ko) ne se chargent qu'à l'ouverture de leur page. Remesurer après chaque ajout de dépendance côté client.
   - Police du téléphone (Geist retirée), logo WebP de 6 Ko.
   - Photos chargées au défilement, avec un aperçu flouté (`photoFloueUrl`), et un bouton « sans photos ».
   - Le backend compresse ses réponses en gzip (`compression`).
@@ -78,6 +78,16 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - Rattaché au jeton de la table ; vérifié quand il est relu depuis le stockage.
   - `cleIdempotence` est régénérée après chaque envoi de commande.
   - Les prix du panier sont indicatifs : le serveur recalcule tout à la commande.
+- **Commande client** (`src/services/commande.service.ts`), `POST /api/menu/:jeton/commandes` :
+  - Le client n'envoie que ses choix (plat, quantité, options, extras, note) et sa place : aucun prix. Le schéma Zod est strict, un champ `prix` est refusé.
+  - Le serveur recalcule chaque prix et exige exactement une option par groupe de choix.
+  - Un article épuisé ou archivé renvoie un 409 avec `details.indisponibles` (ids des plats), que la page de validation signale ligne par ligne.
+  - Clé déjà connue : 200 avec la commande existante, au lieu de 201. Deux envois simultanés : la contrainte `UNIQUE` rejette le second (P2002), puis on renvoie la commande créée.
+  - La place est portée par chaque ligne (`LigneCommande.chaise`), une commande client n'en a qu'une.
+  - Limite de 10 envois par table sur 10 minutes, comptée par jeton et non par IP.
+  - Suivi : `GET /api/menu/:jeton/commandes/:id`, limité à la table du QR et aux 12 dernières heures. Statut global dérivé des lignes (`statutCommande`). En attendant Socket.io (étape 6), la page relit le suivi toutes les 20 s.
+  - Le menu est chargé par la route parente `id: 'menu'` (`useMenu()`), qui n'est rechargée qu'au changement de table.
+  - Les commandes envoyées depuis le téléphone sont mémorisées par table (`stores/commandes.ts`) pour le lien « Suivre ma commande ».
 - **shadcn/ui** (style `radix-nova`) : `cn` vient du paquet officiel `cn`, et non de `clsx` + `tailwind-merge`. Après chaque `shadcn add`, lancer `npx eslint . --fix` pour remettre les fichiers au style du projet.
 - **Photos de démonstration** : venues de Wikimedia Commons, uniquement sous licences autorisant l'usage commercial (CC0, domaine public, CC BY, CC BY-SA). Chaque photo a été choisie à l'œil : jamais la bouteille d'une autre marque ; sans photo fiable, l'article reste sans photo.
   - Les licences CC BY et CC BY-SA imposent de citer l'auteur. Le crédit est enregistré dans `Plat.photoCredit` et affiché sous la photo, dans la fiche du plat.

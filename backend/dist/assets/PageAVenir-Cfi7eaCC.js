@@ -1,0 +1,1 @@
+import{r as e}from"./index-CI2imjY5.js";var t=e();function n({titre:e,etape:n}){return(0,t.jsxs)(`main`,{className:`flex min-h-dvh flex-col items-center justify-center gap-2 p-6 text-center`,children:[(0,t.jsx)(`h1`,{className:`text-xl font-semibold`,children:e}),(0,t.jsxs)(`p`,{className:`text-slate-600`,children:[`Arrive à l'étape `,n,`.`]})]})}export{n as t};
