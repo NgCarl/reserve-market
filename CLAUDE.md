@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étapes 1 et 2 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express et l'authentification du personnel. Pas encore de `frontend/`, aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
+**Étapes 1 à 3 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel et la gestion de la carte (catégories, plats, photos Cloudinary). Pas encore de `frontend/`, aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -48,6 +48,13 @@ npm run build:ui      # build du frontend, copié dans backend/dist
   - **Filet par IP** : 30 échecs par IP sur 15 minutes, via `express-rate-limit`. `TRUST_PROXY_HOPS=1` sur Render, sinon toutes les requêtes semblent venir de la même IP.
   - **Écartés volontairement** : inscription publique (seul un admin crée les comptes : `POST /api/utilisateurs`), vérification d'email et mot de passe oublié par email (pas de service d'envoi d'emails en v1).
 - **Utilisateur connecté** : `res.locals.utilisateur`, typé dans `src/types/express.d.ts`. Dans un contrôleur, le lire avec `utilisateurConnecte(res)`.
+- **Photos des plats : envoi direct vers Cloudinary** (`src/services/photo.service.ts`).
+  1. `POST /api/plats/photo/signature` renvoie l'URL d'envoi et des champs signés, valables 1 h.
+  2. Le navigateur envoie le fichier à Cloudinary avec **exactement** ces champs.
+  3. Il transmet ensuite `public_id`, `version` et `signature` de la réponse Cloudinary à `PUT /api/plats/:id/photo`, qui vérifie la signature avant d'enregistrer.
+  - Photos rangées dans le dossier `reserve-market/plats` (paramètre `asset_folder`, dossiers dynamiques), stockées à 1600 px maximum. L'API renvoie une URL d'affichage `f_auto,q_auto,w_400`.
+  - Le SDK ne type pas `verify_api_response_signature` : la vérification est réimplémentée, avec comparaison en temps constant.
+- **Carte** : les tailles, extras et addons d'un plat s'envoient en listes complètes, qui remplacent les précédentes. Une catégorie ne s'archive que si elle ne contient plus de plat actif.
 
 Le dépôt est `reserve-market/`. Son dossier parent (`../`) est un espace de travail **hors git** qui contient les références qui ne doivent jamais entrer dans le dépôt :
 

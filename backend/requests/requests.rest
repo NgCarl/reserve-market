@@ -40,5 +40,55 @@ Content-Type: application/json
   "motDePasse": "Mauvais123"
 }
 
+### Catégories (admin)
+GET {{baseUrl}}/categories
+
+### Création d'une catégorie
+# @name categorie
+POST {{baseUrl}}/categories
+Content-Type: application/json
+
+{
+  "nom": "Desserts",
+  "poste": "CUISINE"
+}
+
+### Plats (admin)
+GET {{baseUrl}}/plats
+
+### Création d'un plat avec tailles et extras
+# @name plat
+POST {{baseUrl}}/plats
+Content-Type: application/json
+
+{
+  "categorieId": {{categorie.response.body.$.categorie.id}},
+  "nom": "Salade de fruits",
+  "prix": 1500,
+  "tempsPreparationMin": 5,
+  "groupesVariantes": [
+    { "nom": "Taille", "options": [{ "nom": "Petit", "supplement": 0 }, { "nom": "Grand", "supplement": 1000 }] }
+  ],
+  "extras": [{ "nom": "Chantilly", "prix": 300 }]
+}
+
+### Modification d'un plat (prix, épuisé)
+PATCH {{baseUrl}}/plats/{{plat.response.body.$.plat.id}}
+Content-Type: application/json
+
+{
+  "prix": 2000,
+  "disponible": false
+}
+
+### Signature pour envoyer une photo à Cloudinary
+POST {{baseUrl}}/plats/photo/signature
+
+### Archivage du plat
+DELETE {{baseUrl}}/plats/{{plat.response.body.$.plat.id}}
+
+### Archivage de la catégorie
+DELETE {{baseUrl}}/categories/{{categorie.response.body.$.categorie.id}}
+
 ### Déconnexion
 POST {{baseUrl}}/auth/logout

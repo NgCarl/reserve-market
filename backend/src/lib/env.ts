@@ -7,6 +7,9 @@ const schemaEnv = z.object({
   DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, { error: 'URL postgresql:// attendue' }),
   JWT_SECRET: z.string().min(32, { error: 'au moins 32 caractères' }),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+  CLOUDINARY_CLOUD_NAME: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
+  CLOUDINARY_API_KEY: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
+  CLOUDINARY_API_SECRET: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
 })
 
 const resultat = schemaEnv.safeParse(process.env)
