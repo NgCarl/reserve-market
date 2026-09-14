@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étape 1 du §13 en cours** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte). Pas encore de serveur Express, pas encore de `frontend/`, aucun test automatisé.
+**Étape 1 du §13 terminée** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte), ESLint, Express et morgan. `src/server.ts` n'existe pas encore (étape 2) : `dev`, `build` et `start` échouent d'ici là. Pas encore de `frontend/`, aucun test automatisé.
 
 ### Commandes (depuis `backend/`)
 
@@ -22,11 +22,16 @@ npm run db:seed       # insère la carte ; ignoré si la base contient déjà un
 npm run db:reset      # vide la base et rejoue les migrations (Prisma 7 ne relance pas le seed)
 npm run db:studio     # interface web de la base
 npm run typecheck     # tsc --noEmit
+npm run lint          # ESLint (typescript-eslint + @stylistic)
+npm run dev           # serveur en rechargement automatique (tsx watch)
+npm run build         # compile src/ vers dist/ (tsconfig.build.json)
+npm run start         # lance dist/server.js
+npm run build:ui      # build du frontend, copié dans backend/public
 ```
 
 ### Points techniques non évidents
 
-- **Versions figées exactes** : Prisma 7.10.0 (la 8 n'est qu'en release candidate), TypeScript 7.0.2, Node ≥ 24. TypeScript 7 ne charge plus aucun `@types` par défaut : `"types": ["node"]` est obligatoire dans `tsconfig.json`.
+- **Versions figées exactes** : Prisma 7.10.0 (la 8 n'est qu'en release candidate), Node ≥ 24, **TypeScript 6.0.3 et pas 7** : `typescript-eslint` n'accepte que TypeScript < 6.1 (https://typescript-eslint.io/users/dependency-versions). Ne pas monter TypeScript tant que cette borne n'a pas bougé. `"types": ["node"]` reste déclaré dans `tsconfig.json`, ce qui prépare le passage à TypeScript 7, qui ne charge plus aucun `@types` par défaut.
 - **ESM** (`"type": "module"`, `module: nodenext`) : les imports relatifs portent l'extension `.js`. Le client Prisma s'importe depuis `src/generated/prisma/client.js`, avec l'adaptateur `@prisma/adapter-pg`.
 - **Deux URL de base** dans `backend/.env` (modèle : `.env.example`) : `DATABASE_URL`, poolée, pour l'application et le seed ; `DATABASE_URL_UNPOOLED`, directe, pour le CLI Prisma via `prisma.config.ts`.
 - **Contraintes CHECK écrites à la main** dans la migration `init` : prix ≥ 0, quantité > 0, annulation motivée, encaissement complet, mode de paiement seulement sur une addition. Toute contrainte de ce type passe par `prisma migrate dev --create-only`, puis édition du SQL avant application.
@@ -160,6 +165,7 @@ reserve-market/
     │   ├── sockets/          # handlers Socket.io
     │   ├── lib/              # prisma client, cloudinary
     │   └── server.ts
+    ├── requests/             # requêtes REST Client (*.rest), une par ressource
     ├── prisma/
     │   ├── schema.prisma
     │   └── seed.ts
@@ -167,7 +173,7 @@ reserve-market/
     └── public/               # build du front (vite build) — non commité
 ```
 
-**Le build du front va dans `backend/public/`, jamais à la racine de `backend/`.** Express sert en statique tout le dossier qu'on lui donne : pointé sur la racine, il servirait `.env`, `package.json` et `prisma/` à n'importe quel visiteur. Côté Vite : `build.outDir: '../backend/public'` avec `emptyOutDir: true`. Sans cette option, Vite ne vide pas un dossier de sortie situé hors de son projet et se contente d'un avertissement (https://vite.dev/config/build-options).
+**Le build du front va dans `backend/public/`, jamais à la racine de `backend/`.** Express sert en statique tout le dossier qu'on lui donne : pointé sur la racine, il servirait `.env`, `package.json` et `prisma/` à n'importe quel visiteur. Le frontend build dans son propre `frontend/dist/`. `npm run build:ui`, lancé depuis `backend/`, supprime `backend/public/`, lance ce build puis copie le résultat dans `backend/public/`.
 
 **Express n'impose aucune structure : celle-ci est obligatoire.** Un contrôleur ne contient jamais de requête Prisma. Un service ne connaît ni `req` ni `res`.
 
@@ -280,6 +286,10 @@ Ne jamais implémenter un FIFO brut : le cuisinier préparerait un jus avant un 
 **API en URL relative** : le front appelle `/api/...`, jamais une URL absolue. Comme tout est servi par le même serveur, ça fonctionne en local comme en production sans variable d'environnement. Vite fige les variables au build — une URL absolue dans le bundle est une erreur de déploiement garantie.
 
 **Migrations Prisma versionnées et commitées.** Jamais de `db push` en dehors du prototypage local.
+
+**Lint** : `npm run lint` doit passer avant chaque commit. Style imposé par `eslint.config.js` : indentation de 2 espaces, guillemets simples (doubles admis pour éviter d'échapper une apostrophe), pas de point-virgule, `===` obligatoire.
+
+**Requêtes HTTP avec REST Client** (extension VS Code `humao.rest-client`). Chaque endpoint créé ou modifié a sa requête dans `backend/requests/<ressource>.rest`, une requête par cas (succès et erreurs de validation), séparées par `###`. L'URL de base est une variable de fichier : `@baseUrl = http://localhost:3001/api`. Les jetons JWT et mots de passe ne sont **jamais écrits en dur** : `{{$dotenv NOM}}` les lit dans `backend/requests/.env`, ignoré par git.
 
 ---
 

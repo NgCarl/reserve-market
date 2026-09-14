@@ -2,7 +2,6 @@
 node_modules/
 
 # Builds
-backend/dist/
 backend/public/
 frontend/dist/
 
