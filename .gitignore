@@ -1,0 +1,20 @@
+# Dépendances
+node_modules/
+
+# Builds
+backend/dist/
+backend/public/
+frontend/dist/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Divers
+*.log
+.DS_Store
+coverage/
+
+# Client Prisma généré (prisma generate)
+backend/src/generated/

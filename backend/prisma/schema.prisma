@@ -1,0 +1,311 @@
+// Reserve Market — schéma de données
+// Montants : Int en francs CFA (XAF). Jamais Float ni Decimal (CLAUDE.md §6).
+// Tables en snake_case pluriel, champs en camelCase.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+// L'URL est fournie par prisma.config.ts (Prisma 7).
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CUISINE
+  SERVEUR
+}
+
+/// File de préparation (§10). Portée par la catégorie, copiée sur chaque ligne de commande.
+enum Poste {
+  BAR
+  CUISINE
+}
+
+enum StatutLigne {
+  RECUE
+  EN_PREPARATION
+  PRETE
+  SERVIE
+  ANNULEE
+}
+
+enum SourceCommande {
+  CLIENT
+  SERVEUR
+}
+
+enum ModePaiement {
+  ESPECES
+  MOBILE_MONEY
+}
+
+enum TypeAppel {
+  APPEL_SERVEUR
+  ADDITION
+}
+
+model Restaurant {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  telephone String?
+  adresse   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  utilisateurs Utilisateur[]
+  tables       Table[]
+  categories   Categorie[]
+  plats        Plat[]
+  commandes    Commande[]
+  appels       AppelTable[]
+
+  @@map("restaurants")
+}
+
+model Utilisateur {
+  id             Int      @id @default(autoincrement())
+  restaurantId   Int
+  nom            String
+  email          String   @unique
+  motDePasseHash String
+  role           Role
+  actif          Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant          Restaurant      @relation(fields: [restaurantId], references: [id])
+  commandesSaisies    Commande[]      @relation("SaisieServeur")
+  commandesEncaissees Commande[]      @relation("Encaissement")
+  lignesServies       LigneCommande[] @relation("Service")
+  lignesAnnulees      LigneCommande[] @relation("Annulation")
+  appelsTraites       AppelTable[]
+
+  @@index([restaurantId])
+  @@map("utilisateurs")
+}
+
+model Table {
+  id            Int      @id @default(autoincrement())
+  restaurantId  Int
+  numero        Int
+  nombreChaises Int
+  /// Jeton aléatoire encodé dans le QR, jamais l'id ni le numéro (§6).
+  /// Le régénérer invalide aussitôt l'ancien QR.
+  jeton         String   @unique
+  actif         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id])
+  commandes  Commande[]
+  appels     AppelTable[]
+
+  @@unique([restaurantId, numero])
+  @@map("tables")
+}
+
+model Categorie {
+  id           Int       @id @default(autoincrement())
+  restaurantId Int
+  nom          String
+  poste        Poste
+  ordre        Int       @default(0)
+  archiveAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  plats      Plat[]
+
+  @@index([restaurantId, ordre])
+  @@map("categories")
+}
+
+model Plat {
+  id                  Int       @id @default(autoincrement())
+  restaurantId        Int
+  categorieId         Int
+  nom                 String
+  description         String?
+  /// Prix de base. Les suppléments de taille s'y ajoutent.
+  prix                Int
+  imagePublicId       String?
+  disponible          Boolean   @default(true)
+  /// null = stock non suivi (plats cuisinés). Sinon décrément atomique (§6).
+  stock               Int?
+  tempsPreparationMin Int?
+  ordre               Int       @default(0)
+  /// Soft delete : un plat n'est jamais supprimé (§6).
+  archiveAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  restaurant       Restaurant       @relation(fields: [restaurantId], references: [id])
+  categorie        Categorie        @relation(fields: [categorieId], references: [id])
+  groupesVariantes GroupeVariante[]
+  extras           Extra[]
+  addons           PlatAddon[]      @relation("PlatPrincipal")
+  addonDe          PlatAddon[]      @relation("PlatPropose")
+  lignes           LigneCommande[]
+
+  @@index([restaurantId, categorieId, ordre])
+  @@map("plats")
+}
+
+/// Choix unique obligatoire, par exemple « Taille » (Variation chez FoodScan).
+model GroupeVariante {
+  id     Int    @id @default(autoincrement())
+  platId Int
+  nom    String
+  ordre  Int    @default(0)
+
+  plat    Plat             @relation(fields: [platId], references: [id])
+  options OptionVariante[]
+
+  @@unique([platId, nom])
+  @@map("groupes_variantes")
+}
+
+model OptionVariante {
+  id         Int    @id @default(autoincrement())
+  groupeId   Int
+  nom        String
+  /// Ajouté au prix de base du plat. 0 pour l'option de base.
+  supplement Int    @default(0)
+  ordre      Int    @default(0)
+
+  groupe GroupeVariante @relation(fields: [groupeId], references: [id], onDelete: Cascade)
+
+  @@unique([groupeId, nom])
+  @@map("options_variantes")
+}
+
+/// Supplément payant à cocher (Extra chez FoodScan).
+model Extra {
+  id     Int    @id @default(autoincrement())
+  platId Int
+  nom    String
+  prix   Int
+  ordre  Int    @default(0)
+
+  plat Plat @relation(fields: [platId], references: [id])
+
+  @@unique([platId, nom])
+  @@map("extras")
+}
+
+/// Autre plat proposé dans la fiche d'un plat (Addon chez FoodScan).
+/// Commandé, il devient sa propre ligne : il suit son propre poste (une boisson part au bar).
+model PlatAddon {
+  platId        Int
+  platProposeId Int
+  ordre         Int @default(0)
+
+  plat        Plat @relation("PlatPrincipal", fields: [platId], references: [id])
+  platPropose Plat @relation("PlatPropose", fields: [platProposeId], references: [id])
+
+  @@id([platId, platProposeId])
+  @@map("plats_addons")
+}
+
+model Commande {
+  id             Int            @id @default(autoincrement())
+  restaurantId   Int
+  tableId        Int
+  source         SourceCommande
+  /// Serveur ayant saisi la commande (source SERVEUR).
+  saisieParId    Int?
+  /// UUID généré par le front. L'unicité en base rejette les doubles envois (§6).
+  cleIdempotence String         @unique @db.Uuid
+  urgent         Boolean        @default(false)
+  /// Mode indiqué par le client ou constaté par le serveur. N'implique aucun paiement.
+  modePaiement   ModePaiement?
+  /// Posé uniquement par le serveur, après réception de l'argent (§6).
+  encaisseeAt    DateTime?
+  encaisseeParId Int?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id])
+  table        Table           @relation(fields: [tableId], references: [id])
+  saisiePar    Utilisateur?    @relation("SaisieServeur", fields: [saisieParId], references: [id])
+  encaisseePar Utilisateur?    @relation("Encaissement", fields: [encaisseeParId], references: [id])
+  lignes       LigneCommande[]
+
+  @@index([restaurantId, createdAt])
+  @@index([tableId, encaisseeAt])
+  @@map("commandes")
+}
+
+/// Le statut est porté par la ligne : le bar et la cuisine avancent indépendamment (§10).
+model LigneCommande {
+  id              Int         @id @default(autoincrement())
+  commandeId      Int
+  platId          Int
+  /// nomPlat, prixUnitaire et poste sont figés à la commande (§6).
+  nomPlat         String
+  /// Prix de base + supplément de taille + extras, pour une unité.
+  prixUnitaire    Int
+  quantite        Int
+  poste           Poste
+  chaise          Int?
+  note            String?
+  statut          StatutLigne @default(RECUE)
+  preparationAt   DateTime?
+  preteAt         DateTime?
+  servieAt        DateTime?
+  servieParId     Int?
+  annuleeAt       DateTime?
+  annuleeParId    Int?
+  motifAnnulation String?
+
+  commande   Commande      @relation(fields: [commandeId], references: [id])
+  plat       Plat          @relation(fields: [platId], references: [id])
+  serviePar  Utilisateur?  @relation("Service", fields: [servieParId], references: [id])
+  annuleePar Utilisateur?  @relation("Annulation", fields: [annuleeParId], references: [id])
+  options    LigneOption[]
+
+  @@index([commandeId])
+  @@index([poste, statut])
+  @@map("lignes_commande")
+}
+
+/// Taille ou extra choisi, figé à la commande.
+model LigneOption {
+  id      Int    @id @default(autoincrement())
+  ligneId Int
+  /// Par exemple « Taille : 1/2 » ou « Extra : fromage ».
+  libelle String
+  prix    Int
+
+  ligne LigneCommande @relation(fields: [ligneId], references: [id], onDelete: Cascade)
+
+  @@index([ligneId])
+  @@map("lignes_options")
+}
+
+/// « Appeler le serveur » et demandes d'addition. Conservés pour le rattrapage
+/// après reconnexion du téléphone serveur (§7).
+model AppelTable {
+  id           Int           @id @default(autoincrement())
+  restaurantId Int
+  tableId      Int
+  type         TypeAppel
+  /// Renseigné pour une demande d'addition.
+  modePaiement ModePaiement?
+  createdAt    DateTime      @default(now())
+  traiteAt     DateTime?
+  traiteParId  Int?
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id])
+  table      Table        @relation(fields: [tableId], references: [id])
+  traitePar  Utilisateur? @relation(fields: [traiteParId], references: [id])
+
+  @@index([restaurantId, traiteAt])
+  @@map("appels_table")
+}
