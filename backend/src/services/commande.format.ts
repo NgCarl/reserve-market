@@ -22,6 +22,7 @@ export function statutCommande(statuts: readonly StatutLigne[]): StatutLigne {
 export const selectCommandePublique = {
   id: true,
   createdAt: true,
+  encaisseeAt: true,
   table: { select: { numero: true } },
   lignes: {
     orderBy: { id: 'asc' },
@@ -47,6 +48,8 @@ export function formaterCommande(commande: CommandePubliqueBrute) {
     creeLe: commande.createdAt.toISOString(),
     table: { numero: commande.table.numero },
     chaise: commande.lignes[0]?.chaise ?? null,
+    // Posé par le serveur quand il a reçu l'argent : le client voit « Payée » sur son suivi.
+    encaissee: commande.encaisseeAt !== null,
     statut: statutCommande(commande.lignes.map((ligne) => ligne.statut)),
     total: actives.reduce((total, ligne) => total + ligne.prixUnitaire * ligne.quantite, 0),
     lignes: commande.lignes.map((ligne) => ({
@@ -70,6 +73,7 @@ export const selectCommandeCuisine = {
   id: true,
   createdAt: true,
   urgent: true,
+  encaisseeAt: true,
   table: { select: { id: true, numero: true } },
   lignes: {
     orderBy: { id: 'asc' },

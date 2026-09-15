@@ -32,9 +32,18 @@ app.use('/api', apiNotFound)
 
 // Frontend buildé, copié dans backend/dist par npm run build:ui.
 const dist = path.resolve(import.meta.dirname, '../dist')
-app.use(express.static(dist))
+app.use(express.static(dist, {
+  // https://expressjs.com/en/5x/api.html#express.static : setHeaders passe avant le Cache-Control par défaut.
+  setHeaders: (res, fichier) => {
+    // Fichiers de Vite dont le nom contient un hash : jamais modifiés, le téléphone les garde un an (§8).
+    if (fichier.includes(`${path.sep}assets${path.sep}`)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    // Page, service worker, manifest, icônes : toujours revalidés, sinon une nouvelle version ne serait jamais vue.
+    else res.setHeader('Cache-Control', 'no-cache')
+  },
+}))
 // React Router : une adresse ouverte directement, comme /menu/:jeton après le scan du QR, renvoie index.html.
 app.get('/{*splat}', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache')
   res.sendFile(path.join(dist, 'index.html'))
 })
 

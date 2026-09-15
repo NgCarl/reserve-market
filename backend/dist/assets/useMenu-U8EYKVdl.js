@@ -1,0 +1,1 @@
+import{h as e}from"./jsx-runtime-2e0Ojc8n.js";function t(){let t=e(`menu`);if(!t)throw Error(`useMenu doit être utilisé sous la route /menu/:jeton`);return t}export{t};

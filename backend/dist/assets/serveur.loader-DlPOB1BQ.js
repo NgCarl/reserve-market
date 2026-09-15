@@ -1,1 +1,0 @@
-import{r as e}from"./index-D_SpVZPX.js";async function t({request:t}){return{utilisateur:await e(t,[`SERVEUR`,`ADMIN`])}}export{t as chargerServeur};

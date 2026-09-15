@@ -1,10 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router'
-import { requeteApi } from '@/lib/api'
-import { exigerSession } from '@/lib/session'
+import { chargerEcranPersonnel } from '@/lib/ecranPersonnel'
+import { requeteStaff } from '@/lib/session'
 import type { CommandeCuisine } from '@/types/cuisine'
 
-export async function chargerCuisine({ request }: LoaderFunctionArgs) {
-  const utilisateur = await exigerSession(request, ['CUISINE', 'ADMIN'])
-  const { commandes } = await requeteApi<{ commandes: CommandeCuisine[] }>('/cuisine/commandes')
-  return { utilisateur, commandes }
+export function chargerCuisine({ request }: LoaderFunctionArgs) {
+  return chargerEcranPersonnel(request, 'cuisine', ['CUISINE', 'ADMIN'], async () =>
+    (await requeteStaff<{ commandes: CommandeCuisine[] }>(request, '/cuisine/commandes')).commandes)
 }

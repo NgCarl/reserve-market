@@ -1,1 +1,0 @@
-import{l as e,r as t}from"./index-D_SpVZPX.js";async function n({request:n}){let r=await t(n,[`CUISINE`,`ADMIN`]),{commandes:i}=await e(`/cuisine/commandes`);return{utilisateur:r,commandes:i}}export{n as chargerCuisine};

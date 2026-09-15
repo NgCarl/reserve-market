@@ -23,6 +23,16 @@ export const limiteurInscription = rateLimit({
   message: { message: "Trop de demandes d'inscription depuis cette adresse. Réessayez dans une heure." },
 })
 
+// Boutons « Appeler le serveur » et « Payer » : 6 appels par table sur 10 minutes, contre les appuis répétés.
+export const limiteurAppel = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 6,
+  keyGenerator: (req) => `appel:${String(req.params.jeton)}`,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { message: 'Le serveur a déjà été prévenu. Patientez un instant, il arrive.' },
+})
+
 // Contre les commandes en rafale : 10 envois par table sur 10 minutes. Compté par table (jeton du QR)
 // et non par IP, car tout le restaurant partage souvent la même box.
 export const limiteurCommande = rateLimit({

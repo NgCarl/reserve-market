@@ -35,15 +35,10 @@ const selectPlatPublic = {
 const estDisponible = (plat: { disponible: boolean; stock: number | null }): boolean =>
   plat.disponible && plat.stock !== 0
 
-export async function menuDeLaTable(jeton: string) {
-  const table = await prisma.table.findFirst({
-    where: { jeton, actif: true },
-    select: { numero: true, nombreChaises: true, restaurant: { select: { id: true, nom: true } } },
-  })
-  if (!table) throw new NotFoundError('Table introuvable : scannez à nouveau le QR code posé sur votre table')
-
+/** Catégories et plats de la carte au format public : partagés par le menu du client et la saisie du serveur. */
+async function categoriesDuMenu(restaurantId: number) {
   const categories = await prisma.categorie.findMany({
-    where: { restaurantId: table.restaurant.id, archiveAt: null, plats: { some: { archiveAt: null } } },
+    where: { restaurantId, archiveAt: null, plats: { some: { archiveAt: null } } },
     orderBy: [{ ordre: 'asc' }, { id: 'asc' }],
     select: {
       id: true,
@@ -53,35 +48,55 @@ export async function menuDeLaTable(jeton: string) {
     },
   })
 
+  return categories.map((categorie) => ({
+    id: categorie.id,
+    nom: categorie.nom,
+    // Vignette de la puce : photo du premier plat illustré de la catégorie.
+    imageUrl: urlVignette(categorie.plats.find((plat) => plat.imagePublicId)?.imagePublicId ?? null),
+    plats: categorie.plats.map(({ imagePublicId, stock, disponible, addons, groupesVariantes, ...plat }) => ({
+      ...plat,
+      groupesVariantes: groupesVariantes.map((groupe) => ({
+        ...groupe,
+        options: groupe.options.map(({ imagePublicId: imageOption, ...option }) => ({ ...option, photoUrl: urlVignette(imageOption, 160) })),
+      })),
+      // Bar ou cuisine : adapte l'exemple d'instruction dans la fiche (glaçons pour une boisson, cuisson pour un plat).
+      poste: categorie.poste,
+      disponible: estDisponible({ disponible, stock }),
+      photoUrl: urlPhoto(imagePublicId),
+      photoFloueUrl: urlPhotoFloue(imagePublicId),
+      addons: addons.map(({ platPropose }) => ({
+        id: platPropose.id,
+        nom: platPropose.nom,
+        prix: platPropose.prix,
+        disponible: estDisponible(platPropose),
+        photoUrl: urlVignette(platPropose.imagePublicId, 200),
+      })),
+    })),
+  }))
+}
+
+export async function menuDeLaTable(jeton: string) {
+  const table = await prisma.table.findFirst({
+    where: { jeton, actif: true },
+    select: { numero: true, nombreChaises: true, restaurant: { select: { id: true, nom: true } } },
+  })
+  if (!table) throw new NotFoundError('Table introuvable : scannez à nouveau le QR code posé sur votre table')
+
   return {
     restaurant: { nom: table.restaurant.nom },
     table: { numero: table.numero, nombreChaises: table.nombreChaises },
-    categories: categories.map((categorie) => ({
-      id: categorie.id,
-      nom: categorie.nom,
-      // Vignette de la puce : photo du premier plat illustré de la catégorie.
-      imageUrl: urlVignette(categorie.plats.find((plat) => plat.imagePublicId)?.imagePublicId ?? null),
-      plats: categorie.plats.map(({ imagePublicId, stock, disponible, addons, groupesVariantes, ...plat }) => ({
-        ...plat,
-        groupesVariantes: groupesVariantes.map((groupe) => ({
-          ...groupe,
-          options: groupe.options.map(({ imagePublicId: imageOption, ...option }) => ({ ...option, photoUrl: urlVignette(imageOption, 160) })),
-        })),
-        // Bar ou cuisine : adapte l'exemple d'instruction dans la fiche (glaçons pour une boisson, cuisson pour un plat).
-        poste: categorie.poste,
-        disponible: estDisponible({ disponible, stock }),
-        photoUrl: urlPhoto(imagePublicId),
-        photoFloueUrl: urlPhotoFloue(imagePublicId),
-        addons: addons.map(({ platPropose }) => ({
-          id: platPropose.id,
-          nom: platPropose.nom,
-          prix: platPropose.prix,
-          disponible: estDisponible(platPropose),
-          photoUrl: urlVignette(platPropose.imagePublicId, 200),
-        })),
-      })),
-    })),
+    categories: await categoriesDuMenu(table.restaurant.id),
   }
 }
 
 export type MenuTable = Awaited<ReturnType<typeof menuDeLaTable>>
+
+/** Saisie serveur (§7) : la même carte, avec les tables actives pour choisir où servir. */
+export async function menuServeur(restaurantId: number) {
+  const [restaurant, tables, categories] = await Promise.all([
+    prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { nom: true } }),
+    prisma.table.findMany({ where: { restaurantId, actif: true }, orderBy: { numero: 'asc' }, select: { id: true, numero: true, nombreChaises: true } }),
+    categoriesDuMenu(restaurantId),
+  ])
+  return { restaurant, tables, categories }
+}

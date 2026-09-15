@@ -5,6 +5,7 @@ import { AppError, UnauthorizedError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import { NOM_COOKIE_SESSION } from '../lib/session.js'
 import { utilisateurDepuisJeton } from '../services/auth.service.js'
+import type { AppelSalle } from '../services/appel.service.js'
 import type { CommandeCuisine, CommandePublique } from '../services/commande.format.js'
 
 // Temps réel (CLAUDE.md §9). Typage des événements : https://socket.io/docs/v4/typescript/
@@ -16,9 +17,14 @@ interface EvenementsServeur {
   'commande:nouvelle': AvecCommande
   'commande:statut': AvecCommande
   'commande:annulee': AvecCommande
+  /** Salle des serveurs uniquement : un client appelle, ou demande l'addition (mode et montant). */
+  'table:appel-serveur': (appel: AppelSalle) => void
+  'table:addition': (appel: AppelSalle) => void
+  /** Un serveur a pris l'appel en charge : il disparaît chez les autres. */
+  'appel:traite': (appel: { id: number }) => void
 }
 
-export type EvenementCommande = keyof EvenementsServeur
+export type EvenementCommande = 'commande:nouvelle' | 'commande:statut' | 'commande:annulee'
 
 type DonneesSocket =
   | { type: 'table'; restaurantId: number; tableId: number }

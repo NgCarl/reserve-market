@@ -16,17 +16,31 @@ const ligneSchema = z.strictObject({
   note: z.string().trim().max(200, { error: 'Instruction : 200 caractères maximum' }).default(''),
 })
 
+const lignesSchema = z
+  .array(ligneSchema, { error: 'Le panier est vide' })
+  .min(1, { error: 'Le panier est vide' })
+  .max(50, { error: 'Commande trop longue : 50 lignes maximum' })
+
+/** UUID généré par le panier : un renvoi avec la même clé ne crée pas de seconde commande. */
+const cleIdempotenceSchema = z.uuid({ error: 'Clé de commande invalide' })
+
 export const nouvelleCommandeSchema = z.strictObject({
-  /** UUID généré par le panier : un renvoi avec la même clé ne crée pas de seconde commande. */
-  cleIdempotence: z.uuid({ error: 'Clé de commande invalide' }),
+  cleIdempotence: cleIdempotenceSchema,
   chaise: z.int({ error: 'Choisissez votre place' }).positive({ error: 'Choisissez votre place' }),
-  lignes: z
-    .array(ligneSchema, { error: 'Le panier est vide' })
-    .min(1, { error: 'Le panier est vide' })
-    .max(50, { error: 'Commande trop longue : 50 lignes maximum' }),
+  lignes: lignesSchema,
 })
 
 export type NouvelleCommande = z.infer<typeof nouvelleCommandeSchema>
+
+/** Saisie par un serveur pour un client sans téléphone (§7) : table choisie dans la liste, place facultative. */
+export const commandeServeurSchema = z.strictObject({
+  tableId: z.int({ error: 'Choisissez une table' }).positive({ error: 'Choisissez une table' }),
+  cleIdempotence: cleIdempotenceSchema,
+  chaise: z.int({ error: 'Place invalide' }).positive({ error: 'Place invalide' }).nullable().default(null),
+  lignes: lignesSchema,
+})
+
+export type CommandeServeur = z.infer<typeof commandeServeurSchema>
 
 export const suiviParamsSchema = jetonParamsSchema.extend({
   commandeId: z.coerce.number({ error: 'Commande invalide' }).int({ error: 'Commande invalide' }).positive({ error: 'Commande invalide' }),

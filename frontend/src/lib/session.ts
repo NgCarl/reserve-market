@@ -1,6 +1,7 @@
 import { redirect } from 'react-router'
 import type { Role, Utilisateur } from '@/types/utilisateur'
 import { ErreurApi, requeteApi } from './api'
+import { CLES_PERSONNEL, effacerCache } from './cacheLocal'
 
 const ACCUEIL: Record<Role, string> = {
   ADMIN: '/admin',
@@ -40,11 +41,15 @@ export async function requeteStaff<T>(request: Request, chemin: string): Promise
   }
 }
 
-/** Efface la session côté serveur. Un échec réseau n'empêche pas de quitter l'écran : le cookie expirera de lui-même. */
+/**
+ * Efface la session côté serveur. Un échec réseau n'empêche pas de quitter l'écran : le cookie expirera de lui-même.
+ * Les écrans enregistrés sur l'appareil (§7) partent avec la session.
+ */
 export async function deconnecter(): Promise<void> {
   try {
     await requeteApi<void>('/auth/logout', { method: 'POST' })
   } catch (probleme) {
     console.error(probleme)
   }
+  await Promise.all(CLES_PERSONNEL.map((cle) => effacerCache(cle)))
 }

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { useLoaderData } from 'react-router'
 import { CarteCommande } from '@/components/cuisine/CarteCommande'
 import { DialogueAnnulation, type ArticleAAnnuler } from '@/components/cuisine/DialogueAnnulation'
+import { BandeauHorsLigne } from '@/components/BandeauHorsLigne'
 import { EnteteStaff } from '@/components/cuisine/EnteteStaff'
 import { TableauArticles } from '@/components/cuisine/TableauArticles'
 import { useCommandesCuisine } from '@/hooks/useCommandesCuisine'
@@ -35,9 +36,10 @@ const enJson = (method: string, corps: unknown): RequestInit => ({
 
 /** Écran cuisine et bar (maquette FoodScan « K.D.S »), en temps réel. */
 export function CuisinePage() {
-  const { utilisateur, commandes: initiales } = useLoaderData<typeof chargerCuisine>()
+  const ecran = useLoaderData<typeof chargerCuisine>()
+  const { utilisateur } = ecran
   const [sonActive, setSonActive] = useState(false)
-  const { commandes, connecte, erreur, setErreur, appliquer, gererErreur } = useCommandesCuisine(initiales, () => {
+  const { commandes, connecte, coupure, recuLe, erreur, setErreur, appliquer, gererErreur } = useCommandesCuisine(ecran, () => {
     if (sonActive) jouerCarillon()
   })
   const maintenant = useMaintenant()
@@ -122,6 +124,7 @@ export function CuisinePage() {
         <TableauArticles articles={articles} className="hidden md:block md:sticky md:top-[88px] md:max-h-[calc(100dvh-108px)] md:overflow-y-auto" />
 
         <main className="flex min-w-0 flex-col gap-4">
+          {coupure && <BandeauHorsLigne recuLe={recuLe} />}
           <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-3 shadow-[0_1px_3px_rgba(3,40,66,0.06)]">
             <div className="flex flex-wrap gap-3" role="group" aria-label="Filtrer par statut">
               {FILTRES.map(({ valeur, libelle }) => (

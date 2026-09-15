@@ -2,6 +2,7 @@ import { ArrowLeft, Bell, Check, ChefHat, ClipboardList, RefreshCw, Utensils } f
 import { useEffect, useRef } from 'react'
 import { Link, useLoaderData, useLocation, useNavigate, useParams, useRevalidator } from 'react-router'
 import { io, type Socket } from 'socket.io-client'
+import { ActionsTable } from '@/components/menu/ActionsTable'
 import { formaterPrix } from '@/lib/format'
 import { LIBELLES_STATUT } from '@/lib/statut'
 import { cn } from '@/lib/utils'
@@ -26,7 +27,8 @@ export function SuiviPage() {
   const navigate = useNavigate()
   const { revalidate, state } = useRevalidator()
   const confirmee = (location.state as { confirmee?: boolean } | null)?.confirmee === true
-  const terminee = commande.statut === 'SERVIE' || commande.statut === 'ANNULEE'
+  // Suivi en direct jusqu'au paiement : après « Servie », le client attend encore « Payée ».
+  const terminee = commande.encaissee || commande.statut === 'ANNULEE'
   const rang = ETAPES.findIndex((etape) => etape.statut === commande.statut)
   const commandeId = commande.id
 
@@ -133,6 +135,15 @@ export function SuiviPage() {
             <span className="text-lg font-bold text-emerald-600">{formaterPrix(commande.total)}</span>
           </div>
         </section>
+
+        {commande.encaissee ? (
+          <p role="status" className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-4 font-semibold text-emerald-800">
+            <Check className="size-5 shrink-0" />
+            Commande payée. Merci et à bientôt !
+          </p>
+        ) : (
+          commande.statut !== 'ANNULEE' && <ActionsTable jeton={jeton} />
+        )}
 
         <Link to={`/menu/${jeton}`} className="flex h-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
           Commander autre chose

@@ -1,0 +1,1 @@
+import{h as e}from"./jsx-runtime-2e0Ojc8n.js";function t(){let t=e(`admin`);if(!t)throw Error(`useAdmin doit être utilisé sous la route /admin`);return t.utilisateur}export{t};

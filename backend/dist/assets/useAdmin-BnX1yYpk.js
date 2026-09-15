@@ -1,1 +1,0 @@
-import{C as e}from"./index-D_SpVZPX.js";function t(){let t=e(`admin`);if(!t)throw Error(`useAdmin doit être utilisé sous la route /admin`);return t.utilisateur}export{t};

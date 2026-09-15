@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { formaterPrix } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { usePanier, type ChoixLigne } from '@/stores/panier'
+import { usePanier, type ChoixLigne, type NouvelleLigne } from '@/stores/panier'
 import type { AddonPlat, PlatMenu } from '@/types/menu'
 import { BoutonFermer } from './BoutonFermer'
 import { PhotoPlat } from './PhotoPlat'
@@ -16,10 +16,13 @@ interface Props {
   plat: PlatMenu | null
   afficherPhoto: boolean
   onFermer: () => void
+  /** Autre destination que le panier du client : la saisie du serveur (§7). */
+  onAjouter?: (ligne: NouvelleLigne) => void
+  libelleBouton?: string
 }
 
 /** Fiche d'un plat en panneau bas (maquette FoodScan « item modal »). */
-export function FichePlat({ plat, afficherPhoto, onFermer }: Props) {
+export function FichePlat({ plat, afficherPhoto, onFermer, onAjouter, libelleBouton }: Props) {
   return (
     <Sheet open={plat !== null} onOpenChange={(ouvert) => { if (!ouvert) onFermer() }}>
       <SheetContent
@@ -30,7 +33,16 @@ export function FichePlat({ plat, afficherPhoto, onFermer }: Props) {
         className="mx-auto max-h-[92dvh] max-w-md gap-0 overflow-y-auto rounded-t-3xl p-0"
       >
         {/* Clé par plat : chaque fiche repart de ses choix par défaut. */}
-        {plat && <ContenuFiche key={plat.id} plat={plat} afficherPhoto={afficherPhoto} onAjoute={onFermer} />}
+        {plat && (
+          <ContenuFiche
+            key={plat.id}
+            plat={plat}
+            afficherPhoto={afficherPhoto}
+            onAjoute={onFermer}
+            onAjouter={onAjouter}
+            libelleBouton={libelleBouton}
+          />
+        )}
       </SheetContent>
     </Sheet>
   )
@@ -44,10 +56,13 @@ interface ContenuProps {
   plat: PlatMenu
   afficherPhoto: boolean
   onAjoute: () => void
+  onAjouter?: (ligne: NouvelleLigne) => void
+  libelleBouton?: string
 }
 
-function ContenuFiche({ plat, afficherPhoto, onAjoute }: ContenuProps) {
-  const ajouter = usePanier((etat) => etat.ajouter)
+function ContenuFiche({ plat, afficherPhoto, onAjoute, onAjouter, libelleBouton = 'Ajouter au panier' }: ContenuProps) {
+  const ajouterAuPanier = usePanier((etat) => etat.ajouter)
+  const ajouter = onAjouter ?? ajouterAuPanier
   const [quantite, setQuantite] = useState(1)
   // Choix unique obligatoire : la première option de chaque groupe est retenue d'office.
   const [options, setOptions] = useState<Record<number, number>>(() =>
@@ -236,7 +251,7 @@ function ContenuFiche({ plat, afficherPhoto, onAjoute }: ContenuProps) {
         onClick={valider}
         className="sticky bottom-0 h-14 w-full rounded-full bg-primary text-lg font-bold text-primary-foreground shadow-[0_-8px_16px_white] transition-transform active:scale-[0.98]"
       >
-        Ajouter au panier · {formaterPrix(total)}
+        {libelleBouton} · {formaterPrix(total)}
       </button>
     </div>
   )

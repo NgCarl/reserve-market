@@ -1,6 +1,16 @@
 import { prisma } from '../lib/prisma.js'
 import { salles, tempsReel, type EvenementCommande } from '../sockets/io.js'
+import type { AppelSalle } from './appel.service.js'
 import { formaterCommande, formaterCommandeCuisine, selectCommandeCuisine } from './commande.format.js'
+
+/** Appel d'une table : vers les serveurs (et les admins), jamais vers la cuisine ni les autres tables. */
+export function diffuserAppel(restaurantId: number, appel: AppelSalle): void {
+  tempsReel()?.to(salles.serveur(restaurantId)).emit(appel.type === 'ADDITION' ? 'table:addition' : 'table:appel-serveur', appel)
+}
+
+export function diffuserAppelTraite(restaurantId: number, appelId: number): void {
+  tempsReel()?.to(salles.serveur(restaurantId)).emit('appel:traite', { id: appelId })
+}
 
 async function diffuserCommande(commandeId: number, evenement: EvenementCommande): Promise<void> {
   const io = tempsReel()

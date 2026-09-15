@@ -1,7 +1,7 @@
 import { Prisma, type Poste } from '../generated/prisma/client.js'
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
-import type { NouvelleCommande } from '../schemas/commande.schema.js'
+import type { CommandeServeur, NouvelleCommande } from '../schemas/commande.schema.js'
 import { formaterCommande, selectCommandePublique, type CommandePublique } from './commande.format.js'
 import { diffuser } from './diffusion.service.js'
 
@@ -21,10 +21,25 @@ interface LignePreparee {
   stockSuivi: boolean
 }
 
-/** Vérifie chaque choix contre la base et recalcule les prix : le client n'envoie jamais de montant. */
-async function preparerLignes(restaurantId: number, donnees: NouvelleCommande): Promise<LignePreparee[]> {
+interface TableCommande {
+  id: number
+  restaurantId: number
+  nombreChaises: number
+}
+
+/** Ce qui distingue une commande passée par le client (QR) d'une saisie du serveur. */
+type Origine = { source: 'CLIENT' } | { source: 'SERVEUR'; saisieParId: number }
+
+interface DonneesCommande {
+  cleIdempotence: string
+  chaise: number | null
+  lignes: NouvelleCommande['lignes']
+}
+
+/** Vérifie chaque choix contre la base et recalcule les prix : ni le client ni le serveur n'envoient de montant. */
+async function preparerLignes(restaurantId: number, lignesDemandees: DonneesCommande['lignes']): Promise<LignePreparee[]> {
   const plats = await prisma.plat.findMany({
-    where: { id: { in: [...new Set(donnees.lignes.map((ligne) => ligne.platId))] }, restaurantId },
+    where: { id: { in: [...new Set(lignesDemandees.map((ligne) => ligne.platId))] }, restaurantId },
     select: {
       id: true,
       nom: true,
@@ -44,7 +59,7 @@ async function preparerLignes(restaurantId: number, donnees: NouvelleCommande): 
 
   const indisponibles = new Map<number, string>()
   const lignes: LignePreparee[] = []
-  for (const ligne of donnees.lignes) {
+  for (const ligne of lignesDemandees) {
     const plat = parId.get(ligne.platId)
     if (!plat) throw new ValidationError('Article introuvable : rechargez le menu')
     if (plat.archiveAt || plat.categorie.archiveAt || !plat.disponible || plat.stock === 0) {
@@ -84,7 +99,7 @@ async function preparerLignes(restaurantId: number, donnees: NouvelleCommande): 
 
   if (indisponibles.size > 0) {
     throw new ConflictError(
-      `Plus disponible : ${[...indisponibles.values()].join(', ')}. Retirez-le de votre panier.`,
+      `Plus disponible : ${[...indisponibles.values()].join(', ')}. Retirez-le du panier.`,
       { indisponibles: [...indisponibles.keys()] },
     )
   }
@@ -115,20 +130,17 @@ async function commandeExistante(cleIdempotence: string, tableId: number): Promi
     select: { ...selectCommandePublique, tableId: true },
   })
   if (!commande) return null
-  if (commande.tableId !== tableId) throw new ConflictError('Cette commande a déjà été envoyée depuis une autre table')
+  if (commande.tableId !== tableId) throw new ConflictError('Cette commande a déjà été envoyée pour une autre table')
   return formaterCommande(commande)
 }
 
-export async function creerCommandeClient(
-  jeton: string,
-  donnees: NouvelleCommande,
+/** Création commune au client et au serveur : mêmes vérifications, même transaction, même idempotence (§6). */
+async function enregistrerCommande(
+  table: TableCommande,
+  donnees: DonneesCommande,
+  origine: Origine,
 ): Promise<{ commande: CommandePublique; creee: boolean }> {
-  const table = await prisma.table.findFirst({
-    where: { jeton, actif: true },
-    select: { id: true, restaurantId: true, nombreChaises: true },
-  })
-  if (!table) throw new NotFoundError(MESSAGE_TABLE)
-  if (donnees.chaise > table.nombreChaises) {
+  if (donnees.chaise !== null && donnees.chaise > table.nombreChaises) {
     throw new ValidationError(`Place invalide : cette table compte ${table.nombreChaises} places`)
   }
 
@@ -136,7 +148,7 @@ export async function creerCommandeClient(
   const deja = await commandeExistante(donnees.cleIdempotence, table.id)
   if (deja) return { commande: deja, creee: false }
 
-  const lignes = await preparerLignes(table.restaurantId, donnees)
+  const lignes = await preparerLignes(table.restaurantId, donnees.lignes)
   try {
     // Une commande = une transaction (§6) : stocks, commande et lignes, ou rien.
     const commande = await prisma.$transaction(
@@ -146,7 +158,8 @@ export async function creerCommandeClient(
           data: {
             restaurantId: table.restaurantId,
             tableId: table.id,
-            source: 'CLIENT',
+            source: origine.source,
+            saisieParId: origine.source === 'SERVEUR' ? origine.saisieParId : null,
             cleIdempotence: donnees.cleIdempotence,
             lignes: {
               create: lignes.map((ligne) => ({
@@ -177,6 +190,32 @@ export async function creerCommandeClient(
     }
     throw error
   }
+}
+
+export async function creerCommandeClient(
+  jeton: string,
+  donnees: NouvelleCommande,
+): Promise<{ commande: CommandePublique; creee: boolean }> {
+  const table = await prisma.table.findFirst({
+    where: { jeton, actif: true },
+    select: { id: true, restaurantId: true, nombreChaises: true },
+  })
+  if (!table) throw new NotFoundError(MESSAGE_TABLE)
+  return enregistrerCommande(table, donnees, { source: 'CLIENT' })
+}
+
+/** Saisie serveur (§7) : le client n'a pas de téléphone, le serveur commande pour lui depuis le sien. */
+export async function creerCommandeServeur(
+  restaurantId: number,
+  serveurId: number,
+  donnees: CommandeServeur,
+): Promise<{ commande: CommandePublique; creee: boolean }> {
+  const table = await prisma.table.findFirst({
+    where: { id: donnees.tableId, restaurantId, actif: true },
+    select: { id: true, restaurantId: true, nombreChaises: true },
+  })
+  if (!table) throw new NotFoundError('Table introuvable')
+  return enregistrerCommande(table, donnees, { source: 'SERVEUR', saisieParId: serveurId })
 }
 
 export async function obtenirCommandeClient(jeton: string, commandeId: number): Promise<CommandePublique> {

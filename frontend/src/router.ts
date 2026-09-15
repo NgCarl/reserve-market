@@ -3,6 +3,7 @@ import { SqueletteMenu } from '@/components/menu/SqueletteMenu'
 import { PageChargement } from '@/components/PageChargement'
 import { PageErreur } from '@/components/PageErreur'
 import { PageIntrouvable } from '@/components/PageIntrouvable'
+import { menusRafraichis } from '@/lib/menuFrais'
 
 /**
  * Filtres et onglets du back-office vivent dans l'URL (?categorie=, ?onglet=) : les changer ne relit pas l'API,
@@ -19,8 +20,9 @@ export const router = createBrowserRouter([
     id: 'menu',
     path: '/menu/:jeton',
     lazy: async () => ({ loader: (await import('@/routes/client/menu.loader')).chargerMenu }),
-    // Le menu n'est rechargé que si l'on change de table (sinon chaque actualisation du suivi le retéléchargerait).
-    shouldRevalidate: ({ currentParams, nextParams }) => currentParams.jeton !== nextParams.jeton,
+    // Le menu n'est rechargé que si l'on change de table (sinon chaque actualisation du suivi le retéléchargerait),
+    // ou quand sa version à jour vient d'arriver en arrière-plan (menu.loader.ts).
+    shouldRevalidate: ({ currentParams, nextParams }) => currentParams.jeton !== nextParams.jeton || menusRafraichis.has(nextParams.jeton ?? ''),
     // Affiché au premier chargement, pendant que le code de la page et le menu arrivent.
     HydrateFallback: SqueletteMenu,
     ErrorBoundary: PageErreur,
@@ -87,6 +89,18 @@ export const router = createBrowserRouter([
         import('@/routes/serveur/serveur.loader'),
       ])
       return { Component: ServeurPage, loader: chargerServeur }
+    },
+    HydrateFallback: PageChargement,
+    ErrorBoundary: PageErreur,
+  },
+  {
+    path: '/serveur/commande',
+    lazy: async () => {
+      const [{ SaisiePage }, { chargerSaisie }] = await Promise.all([
+        import('@/routes/serveur/SaisiePage'),
+        import('@/routes/serveur/serveur.loader'),
+      ])
+      return { Component: SaisiePage, loader: chargerSaisie }
     },
     HydrateFallback: PageChargement,
     ErrorBoundary: PageErreur,

@@ -5,6 +5,7 @@ import cuisineRoutes from './cuisine.routes.js'
 import gestionRoutes from './gestion.routes.js'
 import menuRoutes from './menu.routes.js'
 import platRoutes from './plat.routes.js'
+import salleRoutes from './salle.routes.js'
 import tableRoutes from './table.routes.js'
 import utilisateurRoutes from './utilisateur.routes.js'
 
@@ -18,5 +19,6 @@ apiRoutes.use('/menu', menuRoutes)
 apiRoutes.use('/cuisine', cuisineRoutes)
 apiRoutes.use('/tables', tableRoutes)
 apiRoutes.use('/gestion', gestionRoutes)
+apiRoutes.use('/serveur', salleRoutes)
 
 export default apiRoutes

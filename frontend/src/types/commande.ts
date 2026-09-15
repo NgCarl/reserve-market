@@ -19,6 +19,8 @@ export interface CommandeSuivie {
   creeLe: string
   table: { numero: number }
   chaise: number | null
+  /** Posé par le serveur après réception de l'argent. */
+  encaissee: boolean
   statut: StatutCommande
   total: number
   lignes: LigneSuivie[]

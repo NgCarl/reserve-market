@@ -1,7 +1,8 @@
-import { LayoutDashboard, LogOut, Volume2, VolumeX } from 'lucide-react'
+import { LayoutDashboard, LogOut, RefreshCw, Volume2, VolumeX } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import logo from '@/assets/logo-reserve-market.webp'
+import { useApplicationPersonnel } from '@/hooks/useApplicationPersonnel'
 import { useDeconnexionInactivite } from '@/hooks/useDeconnexionInactivite'
 import { LIBELLES_ROLE } from '@/lib/roles'
 import { accueilDuRole, deconnecter } from '@/lib/session'
@@ -25,6 +26,7 @@ export function EnteteStaff({ utilisateur, connecte, sonActive = false, onBascul
   const navigate = useNavigate()
   // L'en-tête est présent sur tous les écrans du personnel : la surveillance suit l'admin partout (back-office, cuisine).
   useDeconnexionInactivite(utilisateur.role === 'ADMIN')
+  const miseAJour = useApplicationPersonnel()
 
   const quitter = async () => {
     await deconnecter()
@@ -50,6 +52,18 @@ export function EnteteStaff({ utilisateur, connecte, sonActive = false, onBascul
             <LayoutDashboard className="size-5" />
             <span className="hidden md:inline">Back-office</span>
           </Link>
+        )}
+
+        {miseAJour && (
+          <button
+            type="button"
+            onClick={miseAJour}
+            title="Une nouvelle version est disponible"
+            className="flex h-10 items-center gap-2 rounded-lg bg-emerald-700 px-3 text-sm font-semibold text-white"
+          >
+            <RefreshCw className="size-5" />
+            <span className="hidden sm:inline">Mettre à jour</span>
+          </button>
         )}
 
         {connecte !== undefined && (
