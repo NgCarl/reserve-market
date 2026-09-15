@@ -1,14 +1,17 @@
 import type { RequestHandler, Response } from 'express'
 import type { Role } from '../generated/prisma/client.js'
 import { ForbiddenError, UnauthorizedError } from '../lib/errors.js'
-import { NOM_COOKIE_SESSION } from '../lib/session.js'
-import { utilisateurDepuisJeton } from '../services/auth.service.js'
+import { NOM_COOKIE_SESSION, optionsCookieSession } from '../lib/session.js'
+import { sessionDepuisJeton } from '../services/auth.service.js'
 import type { UtilisateurPublic } from '../services/utilisateur.service.js'
 
 export const authentifier: RequestHandler = async (req, res, next) => {
   const jeton: unknown = req.cookies?.[NOM_COOKIE_SESSION]
   if (typeof jeton !== 'string' || jeton === '') throw new UnauthorizedError()
-  res.locals.utilisateur = await utilisateurDepuisJeton(jeton)
+  const { utilisateur, jetonRenouvele } = await sessionDepuisJeton(jeton)
+  // Session glissante de l'admin : l'échéance d'inactivité repart, toujours dans un cookie de session du navigateur.
+  if (jetonRenouvele) res.cookie(NOM_COOKIE_SESSION, jetonRenouvele, optionsCookieSession)
+  res.locals.utilisateur = utilisateur
   next()
 }
 

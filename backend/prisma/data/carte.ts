@@ -30,8 +30,8 @@ export const restaurantSeed = {
   adresse: 'Ngodi Bakoko, carrefour Ari, axe lourd Village / Yassa, Douala',
 } as const
 
-// Nombre de tables et de chaises inconnu à ce jour : valeurs provisoires à remplacer.
-export const tablesSeed = { nombre: 10, chaisesParTable: 4 } as const
+// Base indiquée par le restaurant le 2026-09-15 : 15 tables de 6 places. L'admin ajuste ensuite table par table.
+export const tablesSeed = { nombre: 15, chaisesParTable: 6 } as const
 
 // Tailles des ice creams : trois prix sur la carte, sans nom. Noms provisoires.
 const glace = (petit: number, moyen: number, grand: number) =>

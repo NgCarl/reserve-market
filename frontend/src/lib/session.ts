@@ -15,21 +15,36 @@ export function retourSur(retour: string | null): string | null {
   return retour?.startsWith('/') && !retour.startsWith('//') ? retour : null
 }
 
+function versConnexion(request: Request): Response {
+  const { pathname, search } = new URL(request.url)
+  return redirect(`/connexion?retour=${encodeURIComponent(pathname + search)}`)
+}
+
 /**
  * À appeler dans le loader d'une page du personnel. Sans session : redirection vers /connexion, puis retour ici.
  * Le serveur revérifie le rôle à chaque requête : ce contrôle ne sert qu'à afficher la bonne page.
  */
 export async function exigerSession(request: Request, roles: readonly Role[]): Promise<Utilisateur> {
-  let utilisateur: Utilisateur
-  try {
-    ;({ utilisateur } = await requeteApi<{ utilisateur: Utilisateur }>('/auth/check-auth'))
-  } catch (erreur) {
-    if (erreur instanceof ErreurApi && erreur.status === 401) {
-      const { pathname, search } = new URL(request.url)
-      throw redirect(`/connexion?retour=${encodeURIComponent(pathname + search)}`)
-    }
-    throw erreur
-  }
+  const { utilisateur } = await requeteStaff<{ utilisateur: Utilisateur }>(request, '/auth/check-auth')
   if (!roles.includes(utilisateur.role)) throw new ErreurApi(403, "Cet écran n'est pas accessible avec votre compte.")
   return utilisateur
+}
+
+/** Lecture d'API dans le loader d'une page du personnel : une session expirée renvoie vers la connexion. */
+export async function requeteStaff<T>(request: Request, chemin: string): Promise<T> {
+  try {
+    return await requeteApi<T>(chemin)
+  } catch (erreur) {
+    if (erreur instanceof ErreurApi && erreur.status === 401) throw versConnexion(request)
+    throw erreur
+  }
+}
+
+/** Efface la session côté serveur. Un échec réseau n'empêche pas de quitter l'écran : le cookie expirera de lui-même. */
+export async function deconnecter(): Promise<void> {
+  try {
+    await requeteApi<void>('/auth/logout', { method: 'POST' })
+  } catch (probleme) {
+    console.error(probleme)
+  }
 }

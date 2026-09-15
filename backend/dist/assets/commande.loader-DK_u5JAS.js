@@ -1,0 +1,1 @@
+import{c as e}from"./index-l-_3271Z.js";function t({params:t}){let n=encodeURIComponent(t.jeton??``),r=encodeURIComponent(t.commandeId??``);return e(`/menu/${n}/commandes/${r}`)}function n({params:t}){return e(`/menu/${encodeURIComponent(t.jeton??``)}/commandes`)}export{t as chargerCommande,n as chargerCommandesTable};

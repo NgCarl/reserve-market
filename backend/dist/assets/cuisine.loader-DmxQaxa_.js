@@ -1,0 +1,1 @@
+import{c as e,r as t}from"./index-l-_3271Z.js";async function n({request:n}){let r=await t(n,[`CUISINE`,`ADMIN`]),{commandes:i}=await e(`/cuisine/commandes`);return{utilisateur:r,commandes:i}}export{n as chargerCuisine};

@@ -10,6 +10,14 @@ const schemaEnv = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
   CLOUDINARY_API_KEY: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
   CLOUDINARY_API_SECRET: z.string().min(1, { error: 'requis (tableau de bord Cloudinary)' }),
+  // Adresse encodée dans les QR des tables. Vide en local : on prend l'adresse par laquelle l'admin ouvre le site.
+  URL_PUBLIQUE: z.preprocess(
+    (valeur) => (valeur === '' ? undefined : valeur),
+    z
+      .url({ error: 'URL complète attendue, par exemple https://reserve-market.onrender.com' })
+      .transform((url) => url.replace(/\/+$/, ''))
+      .optional(),
+  ),
 })
 
 const resultat = schemaEnv.safeParse(process.env)

@@ -1,0 +1,1 @@
+import{x as e}from"./index-l-_3271Z.js";function t(){let t=e(`menu`);if(!t)throw Error(`useMenu doit être utilisé sous la route /menu/:jeton`);return t}export{t};

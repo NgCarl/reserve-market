@@ -1,1 +1,0 @@
-import{r as e}from"./index-DOXibKBv.js";import{n as t}from"./session-WoD9drxB.js";async function n({request:n}){let r=await t(n,[`ADMIN`]),{utilisateurs:i}=await e(`/utilisateurs`);return{utilisateur:r,personnel:i}}export{n as chargerPersonnel};

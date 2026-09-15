@@ -112,6 +112,36 @@ Content-Type: application/json
   "motDePasse": "Mauvais123"
 }
 
+### Tables (admin)
+GET {{baseUrl}}/tables
+
+### Ajout d'une table
+# @name table
+POST {{baseUrl}}/tables
+Content-Type: application/json
+
+{
+  "numero": 16,
+  "nombreChaises": 4
+}
+
+### Modification du nombre de places
+PATCH {{baseUrl}}/tables/{{table.response.body.$.table.id}}
+Content-Type: application/json
+
+{
+  "nombreChaises": 8
+}
+
+### QR code de la table (SVG)
+GET {{baseUrl}}/tables/{{table.response.body.$.table.id}}/qr.svg
+
+### Régénérer le QR code (l'ancien ne fonctionne plus)
+POST {{baseUrl}}/tables/{{table.response.body.$.table.id}}/jeton
+
+### Suppression de la table
+DELETE {{baseUrl}}/tables/{{table.response.body.$.table.id}}
+
 ### Catégories (admin)
 GET {{baseUrl}}/categories
 

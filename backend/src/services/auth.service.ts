@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto'
 import jwt from 'jsonwebtoken'
+import type { Role } from '../generated/prisma/client.js'
 import { env } from '../lib/env.js'
 import { ForbiddenError, TooManyRequestsError, UnauthorizedError } from '../lib/errors.js'
 import { hacherMotDePasse, verifierMotDePasse } from '../lib/password.js'
 import { prisma } from '../lib/prisma.js'
-import { DUREE_SESSION_MS } from '../lib/session.js'
+import { DUREE_INACTIVITE_ADMIN_MS, DUREE_SESSION_MS, RENOUVELLEMENT_SESSION_MS } from '../lib/session.js'
 import {
   annulerTentative,
   cleTentative,
@@ -18,6 +19,7 @@ import { selectUtilisateurPublic, type UtilisateurPublic } from './utilisateur.s
 const MESSAGE_IDENTIFIANTS = 'Email ou mot de passe incorrect'
 const MESSAGE_INACTIF = "Compte pas encore activé : l'administrateur du restaurant doit valider votre accès."
 const MESSAGE_SESSION = 'Session invalide ou expirée'
+const MESSAGE_INACTIVITE = "Session fermée après 30 minutes d'inactivité. Reconnectez-vous."
 
 // Vérifié à la place du vrai hash quand l'email est inconnu : la réponse prend le même temps
 // que pour un compte existant, et le chronométrage ne trahit rien non plus.
@@ -29,6 +31,20 @@ function erreurSuspension(attenteMs: number): TooManyRequestsError {
     `Trop de tentatives échouées. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`,
     Math.ceil(attenteMs / 1000),
   )
+}
+
+/**
+ * Validité d'un jeton. L'admin, souvent sur un poste partagé, est déconnecté après 30 minutes sans activité
+ * (le jeton est renouvelé à chaque requête). La cuisine et les serveurs tiennent un service entier.
+ */
+const dureeJetonMs = (role: Role): number => (role === 'ADMIN' ? DUREE_INACTIVITE_ADMIN_MS : DUREE_SESSION_MS)
+
+function signerJeton(utilisateur: Pick<UtilisateurPublic, 'id' | 'role'>): string {
+  return jwt.sign({}, env.JWT_SECRET, {
+    algorithm: 'HS256',
+    subject: String(utilisateur.id),
+    expiresIn: dureeJetonMs(utilisateur.role) / 1000,
+  })
 }
 
 /** L'utilisateur si les identifiants sont valides, « inactif » si le compte attend son activation, null sinon. */
@@ -72,20 +88,23 @@ export async function connecter(
   }
   enregistrerSucces(cle)
 
-  const jeton = jwt.sign({}, env.JWT_SECRET, {
-    algorithm: 'HS256',
-    subject: String(utilisateur.id),
-    expiresIn: DUREE_SESSION_MS / 1000,
-  })
-  return { utilisateur, jeton }
+  return { utilisateur, jeton: signerJeton(utilisateur) }
 }
 
-export async function utilisateurDepuisJeton(jeton: string): Promise<UtilisateurPublic> {
+/**
+ * Session portée par le cookie. Pour un admin, renvoie aussi un jeton renouvelé : la fenêtre d'inactivité
+ * de 30 minutes repart à chaque requête (au plus une fois par minute, pour ne pas signer à chaque appel).
+ */
+export async function sessionDepuisJeton(jeton: string): Promise<{ utilisateur: UtilisateurPublic; jetonRenouvele: string | null }> {
   let sujet: string | undefined
+  let emisLe: number | undefined
   try {
     // algorithms explicite : empêche un jeton forgé d'imposer un autre algorithme.
     const payload = jwt.verify(jeton, env.JWT_SECRET, { algorithms: ['HS256'] })
-    sujet = typeof payload === 'string' ? undefined : payload.sub
+    if (typeof payload !== 'string') {
+      sujet = payload.sub
+      emisLe = payload.iat
+    }
   } catch (error) {
     // TokenExpiredError et NotBeforeError héritent de JsonWebTokenError.
     if (error instanceof jwt.JsonWebTokenError) throw new UnauthorizedError(MESSAGE_SESSION)
@@ -93,7 +112,7 @@ export async function utilisateurDepuisJeton(jeton: string): Promise<Utilisateur
   }
 
   const id = Number(sujet)
-  if (!Number.isSafeInteger(id)) throw new UnauthorizedError(MESSAGE_SESSION)
+  if (!Number.isSafeInteger(id) || emisLe === undefined) throw new UnauthorizedError(MESSAGE_SESSION)
 
   // Relu en base à chaque requête : désactiver un compte ou changer son rôle prend effet
   // immédiatement, sans attendre l'expiration du jeton.
@@ -102,5 +121,15 @@ export async function utilisateurDepuisJeton(jeton: string): Promise<Utilisateur
     select: selectUtilisateurPublic,
   })
   if (!utilisateur) throw new UnauthorizedError(MESSAGE_SESSION)
-  return utilisateur
+  if (utilisateur.role !== 'ADMIN') return { utilisateur, jetonRenouvele: null }
+
+  // Âge lu sur iat et non sur exp : un compte passé ADMIN pendant sa session est aussitôt soumis à la règle.
+  const age = Date.now() - emisLe * 1000
+  if (age > DUREE_INACTIVITE_ADMIN_MS) throw new UnauthorizedError(MESSAGE_INACTIVITE)
+  return { utilisateur, jetonRenouvele: age > RENOUVELLEMENT_SESSION_MS ? signerJeton(utilisateur) : null }
+}
+
+/** Handshake Socket.io : mêmes vérifications, sans renouvellement (pas de réponse HTTP pour poser le cookie). */
+export async function utilisateurDepuisJeton(jeton: string): Promise<UtilisateurPublic> {
+  return (await sessionDepuisJeton(jeton)).utilisateur
 }

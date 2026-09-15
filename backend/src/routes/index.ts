@@ -4,6 +4,7 @@ import categorieRoutes from './categorie.routes.js'
 import cuisineRoutes from './cuisine.routes.js'
 import menuRoutes from './menu.routes.js'
 import platRoutes from './plat.routes.js'
+import tableRoutes from './table.routes.js'
 import utilisateurRoutes from './utilisateur.routes.js'
 
 const apiRoutes = Router()
@@ -14,5 +15,6 @@ apiRoutes.use('/categories', categorieRoutes)
 apiRoutes.use('/plats', platRoutes)
 apiRoutes.use('/menu', menuRoutes)
 apiRoutes.use('/cuisine', cuisineRoutes)
+apiRoutes.use('/tables', tableRoutes)
 
 export default apiRoutes

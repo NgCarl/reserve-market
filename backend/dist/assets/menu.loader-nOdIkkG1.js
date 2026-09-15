@@ -1,0 +1,1 @@
+import{c as e}from"./index-l-_3271Z.js";import{r as t}from"./panier-Bs0mBXm8.js";async function n({params:n}){let r=n.jeton??``,i=await e(`/menu/${encodeURIComponent(r)}`);return t.getState().ouvrirPourTable(r),i}export{n as chargerMenu};

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étapes 1 à 6 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel, la gestion de la carte (catégories, plats, photos Cloudinary), la création de commande par le client, l'API de l'écran cuisine et le temps réel Socket.io. `frontend/` contient la page menu publique `/menu/:jeton`, le panier, la validation (`/menu/:jeton/commande`), le suivi en direct (`/menu/:jeton/commandes/:id`), la connexion du personnel (`/connexion`) et l'écran cuisine (`/cuisine`) ; `/serveur` et `/admin` sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
+**Étapes 1 à 6 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel, la gestion de la carte (catégories, plats, photos Cloudinary), la création de commande par le client, l'API de l'écran cuisine et le temps réel Socket.io. `frontend/` contient la page menu publique `/menu/:jeton`, le panier, la validation (`/menu/:jeton/commande`), le suivi en direct (`/menu/:jeton/commandes/:id`), la connexion du personnel (`/connexion`), l'écran cuisine (`/cuisine`) et le back-office en cours de construction (étape 7 : `/admin/tables`, `/admin/personnel`) ; `/serveur` est un espace protégé qui annonce l'étape 8. Au lancement, `/` redirige toujours vers `/connexion`. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -50,7 +50,12 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
 - **Modèle de commande** : le statut est porté par `LigneCommande`, pour que le bar et la cuisine avancent indépendamment. Une taille est une `OptionVariante` dont le `supplement` s'ajoute au prix de base du plat. Un addon commandé devient une ligne à part, qui suit son propre poste.
 - npm 11 bloque les scripts d'installation de `@prisma/engines` et `esbuild`. Sans effet constaté : `generate`, `migrate` et `tsx` fonctionnent.
 - **Authentification**, inspirée de `burakorkmez/mern-advanced-auth` (MIT) et corrigée :
-  - **Jeton** : JWT HS256 dans un cookie `session` (`httpOnly`, `sameSite: strict`, `secure` en production), durée 12 h.
+  - **Jeton** : JWT HS256 dans un cookie `session` (`httpOnly`, `sameSite: strict`, `secure` en production).
+  - **Durée de session** (décision du 2026-09-15, postes partagés au restaurant) :
+    - **Fermeture du navigateur** : le cookie n'a ni `maxAge` ni `expires` et disparaît. Tous les onglets d'un même navigateur partagent la session : c'est normal, un autre appareil n'a pas le cookie.
+    - **Cuisine et serveurs** : jeton de 12 h, sans déconnexion en plein service.
+    - **Admin** : jeton de 30 min, renouvelé par `authentifier` à chaque requête (au plus une fois par minute). `sessionDepuisJeton` refuse un jeton admin émis (`iat`) il y a plus de 30 min.
+    - **Côté navigateur** : `useDeconnexionInactivite` (appelé par `EnteteStaff` pour un admin) ramène à `/connexion?expiree=1` après 30 min sans clic ni frappe. L'activité est partagée entre onglets (`localStorage`), et un appui prolonge la session serveur si aucune requête n'est partie depuis 5 min.
   - **Utilisateur** : relu en base à chaque requête, donc un compte désactivé ou un rôle modifié prend effet immédiatement.
   - **Mots de passe** : 8 caractères minimum, dont une majuscule et un chiffre, 72 octets maximum (au-delà, bcrypt tronque). Hachés avec `bcryptjs`, coût 10 (`src/lib/password.ts`). `bcryptjs` et non `bcrypt` : le paquet natif a besoin de ses scripts d'installation, que npm 11 bloque.
   - **Point d'entrée** : `src/index.ts`, avec `import 'dotenv/config'` en première ligne. En ESM, les imports sont évalués dans l'ordre : `.env` est donc chargé avant `src/lib/env.ts`, qui valide les variables.
@@ -103,7 +108,20 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - `PATCH /commandes/urgence` `{ commandeIds, urgent }`. `GET /commandes` : commandes des 12 dernières heures qui ont encore une ligne en cours.
   - Interface (structure du K.D.S FoodScan) : tableau des articles (quantités cumulées à préparer), filtres et recherche, colonnes Cuisine et Bar. Une carte réunit les lignes d'une même table et d'un même poste (`lib/cuisine.ts`), avec une carte à part pour les lignes prêtes. Bordure verte, orange ou rouge selon l'attente (10 et 20 min).
   - Carillon généré par Web Audio (`lib/son.ts`) : le navigateur exige un appui, d'où le bouton jaune « Activer le son » à toucher au début du service.
-- **Back-office** (`/admin`, ADMIN) : `MiseEnPageAdmin` reprend la structure FoodScan (menu latéral groupé, fil d'Ariane, carte blanche avec tableau). Pour l'instant, une seule page : **Personnel** (`routes/admin/PersonnelPage.tsx`).
+- **Navigation du personnel** (décision du 2026-09-15 : elle doit rester évidente) :
+  - `/` redirige vers `/connexion`, porte d'entrée unique ; les clients arrivent directement par `/menu/:jeton`. Si une session est ouverte, `/connexion` affiche un raccourci « Ouvrir mon espace » au-dessus du formulaire, qui reste disponible pour changer de compte.
+  - En-tête commun `EnteteStaff` : logo cliquable vers l'accueil du rôle, nom et rôle (`LIBELLES_ROLE`), bouton « Déconnexion » en toutes lettres (`deconnecter()` puis `/connexion`), bouton « Back-office » quand un admin est sur `/cuisine` ou `/serveur`.
+  - Menu du back-office unique (`components/admin/NavigationAdmin.tsx`) : colonne fixe sur ordinateur, panneau ouvert par ☰ sur téléphone (refermé après un choix). Sections : Restaurant, Équipe, Service. Toute nouvelle page s'y ajoute.
+  - Fil d'Ariane cliquable : `handle: { fil: [{ libelle, vers? }] }` sur chaque route ; « Tableau de bord » ramène à `/admin`.
+  - Accès refusé (403, par exemple un cuisinier sur `/admin`) : `PageErreur` propose « Changer de compte ».
+- **Back-office** (`/admin`, ADMIN) : route parente `id: 'admin'` (`AdminLayout`, structure FoodScan : menu latéral groupé, fil d'Ariane). Son loader vérifie le rôle, `useAdmin()` donne l'utilisateur aux pages. Les loaders des pages passent par `requeteStaff(request, chemin)`, qui renvoie vers `/connexion` si la session a expiré. `/admin` redirige vers `/admin/tables`.
+- **Tables et QR codes** (`/api/tables`, ADMIN ; `routes/admin/TablesPage.tsx`, `TablePage.tsx`, `QrTablesPage.tsx`) :
+  - Base : 15 tables de 6 places (restaurant, 2026-09-15). L'admin ajoute, modifie (numéro, places de 1 à 30) et supprime chaque table. Le nombre de places fixe les boutons « votre place » du client.
+  - Suppression douce (`actif: false`, jeton changé) : l'ancien QR cesse de fonctionner, les commandes passées gardent leur table. Refusée si la table a des commandes non encaissées **de moins de 12 h** : avant l'étape 8, rien n'est jamais encaissé, donc une table aux commandes plus anciennes peut être supprimée. Recréer un numéro supprimé réactive la même table avec un nouveau jeton.
+  - `POST /:id/jeton` régénère le jeton (QR à réimprimer). `GET /:id/qr.svg` : QR généré côté serveur par `uqr` (MIT, sans dépendance), correction d'erreur M, `Cache-Control: private, no-store`. Aucune bibliothèque de QR côté client.
+  - **Adresse encodée dans le QR** : `URL_PUBLIQUE` (backend/.env) en production, sinon l'adresse par laquelle l'admin ouvre le site. Si c'est une adresse locale (localhost, 192.168…), la page d'impression l'affiche en avertissement. En production, définir `URL_PUBLIQUE` avant d'imprimer les fiches.
+  - Impression : `window.print()` ; en-tête, menu et boutons en `print:hidden`, format A4 (`@page` dans `index.css`). `/admin/tables/qr` imprime toutes les fiches d'un coup.
+  - Jeton : `genererJetonTable()` (`src/lib/jeton.ts`), partagé avec le seed.
 - **Connexion du personnel** (`/connexion`, onglets Connexion et Inscription ; `?mode=inscription` ouvre le second) : `exigerSession(request, rôles)` (`lib/session.ts`) dans le loader de chaque écran du personnel. Sans session, redirection vers `/connexion?retour=…` (chemin interne uniquement) ; rôle non autorisé : 403 affiché par `PageErreur`. Après connexion, retour à la page demandée, sinon à l'accueil du rôle.
 - **shadcn/ui** (style `radix-nova`) : `cn` vient du paquet officiel `cn`, et non de `clsx` + `tailwind-merge`. Après chaque `shadcn add`, lancer `npx eslint . --fix` pour remettre les fichiers au style du projet.
 - **Photos de démonstration** : venues de Wikimedia Commons, uniquement sous licences autorisant l'usage commercial (CC0, domaine public, CC BY, CC BY-SA). Chaque photo a été choisie à l'œil : jamais la bouteille d'une autre marque ; sans photo fiable, l'article reste sans photo.

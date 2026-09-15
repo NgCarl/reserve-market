@@ -1,8 +1,8 @@
 import 'dotenv/config'
-import { randomBytes } from 'node:crypto'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { z } from 'zod'
 import { PrismaClient } from '../src/generated/prisma/client.js'
+import { genererJetonTable } from '../src/lib/jeton.js'
 import { hacherMotDePasse } from '../src/lib/password.js'
 import { nouvelUtilisateurSchema } from '../src/schemas/utilisateur.schema.js'
 import { carte, restaurantSeed, tablesSeed, type PlatSeed } from './data/carte.js'
@@ -26,9 +26,6 @@ if (!configSeed.success) {
 
 const config = configSeed.data
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: config.DATABASE_URL }) })
-
-// 128 bits d'aléa, encodés pour une URL : impossible à deviner (CLAUDE.md §6).
-const genererJeton = (): string => randomBytes(16).toString('base64url')
 
 // Le prix de base est celui de la plus petite taille ; les autres deviennent des suppléments.
 function prixEtVariantes(plat: PlatSeed) {
@@ -65,7 +62,7 @@ async function creerCarte(): Promise<{ id: number }> {
           restaurantId: restaurant.id,
           numero: index + 1,
           nombreChaises: tablesSeed.chaisesParTable,
-          jeton: genererJeton(),
+          jeton: genererJetonTable(),
         })),
       })
 

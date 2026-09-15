@@ -110,7 +110,13 @@ export function CuisinePage() {
 
   return (
     <div className="min-h-dvh bg-[#f5f6fa]">
-      <EnteteStaff utilisateur={utilisateur} connecte={connecte} sonActive={sonActive} onBasculerSon={basculerSon} />
+      <EnteteStaff
+        utilisateur={utilisateur}
+        connecte={connecte}
+        sonActive={sonActive}
+        onBasculerSon={basculerSon}
+        lienBackOffice={utilisateur.role === 'ADMIN'}
+      />
 
       <div className="grid items-start gap-5 p-4 sm:p-5 md:grid-cols-[228px_minmax(0,1fr)] xl:grid-cols-[332px_minmax(0,1fr)]">
         <TableauArticles articles={articles} className="hidden md:block md:sticky md:top-[88px] md:max-h-[calc(100dvh-108px)] md:overflow-y-auto" />

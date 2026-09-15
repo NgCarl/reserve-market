@@ -1,1 +1,0 @@
-import{r as e}from"./index-DOXibKBv.js";import{r as t}from"./panier-B9M9PNxG.js";async function n({params:n}){let r=n.jeton??``,i=await e(`/menu/${encodeURIComponent(r)}`);return t.getState().ouvrirPourTable(r),i}export{n as chargerMenu};
