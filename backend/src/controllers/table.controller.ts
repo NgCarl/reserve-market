@@ -1,4 +1,5 @@
 import type { Request, RequestHandler } from 'express'
+import { hotePourTelephone } from '../lib/adresse.js'
 import { env } from '../lib/env.js'
 import { utilisateurConnecte } from '../middlewares/authentifier.js'
 import type { ModificationTable, NouvelleTable } from '../schemas/table.schema.js'
@@ -16,10 +17,14 @@ type Params = Record<string, string>
 
 /**
  * Adresse encodée dans les QR : URL_PUBLIQUE en production, sinon l'adresse par laquelle l'admin ouvre le site.
- * req.protocol tient compte de trust proxy (https derrière Render).
+ * En développement, localhost est remplacé par l'adresse de l'ordinateur sur le réseau local, pour que le
+ * téléphone puisse scanner. req.protocol tient compte de trust proxy (https derrière Render).
  */
-const adresseSite = (req: Pick<Request, 'protocol' | 'get'>): string =>
-  env.URL_PUBLIQUE ?? `${req.protocol}://${req.get('host') ?? 'localhost'}`
+function adresseSite(req: Pick<Request, 'protocol' | 'get'>): string {
+  if (env.URL_PUBLIQUE) return env.URL_PUBLIQUE
+  const hote = req.get('host') ?? 'localhost'
+  return `${req.protocol}://${env.NODE_ENV === 'production' ? hote : hotePourTelephone(hote)}`
+}
 
 export const lister: RequestHandler = async (req, res) => {
   const { restaurantId } = utilisateurConnecte(res)
