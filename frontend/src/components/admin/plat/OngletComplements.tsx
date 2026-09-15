@@ -83,7 +83,7 @@ export function OngletComplements({ plat, plats, categories, onModifie }: Props)
       {plat.addons.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border px-5 py-8 text-center text-muted-foreground">Aucun complément proposé.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="relative overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-[420px] text-left text-[15px]">
             <thead>
               <tr className="border-b border-border text-xs tracking-[0.15em] text-marque-nuit uppercase">

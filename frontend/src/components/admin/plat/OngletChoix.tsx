@@ -161,7 +161,7 @@ export function OngletChoix({ plat, onModifie }: Props) {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-[15px]">
               <thead>
                 <tr className="border-b border-border text-xs tracking-[0.15em] text-marque-nuit uppercase">

@@ -1,10 +1,18 @@
-import { ChefHat, Layers, QrCode, Users, UtensilsCrossed } from 'lucide-react'
+import { ChefHat, ClipboardList, LayoutDashboard, Layers, QrCode, Users, UtensilsCrossed } from 'lucide-react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 
 // Une section par usage, dans l'ordre de la journée : préparer le restaurant, gérer l'équipe, suivre le service.
 // Les autres pages (carte, commandes du jour, tableau de bord) s'ajoutent ici au fil de l'étape 7.
-const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: typeof Users }[] }[] = [
+const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: typeof Users; exact?: boolean }[] }[] = [
+  {
+    titre: "Aujourd'hui",
+    liens: [
+      // exact : /admin n'est actif que sur le tableau de bord, pas sur toutes les pages du back-office.
+      { vers: '/admin', libelle: 'Tableau de bord', Icone: LayoutDashboard, exact: true },
+      { vers: '/admin/commandes', libelle: 'Commandes du jour', Icone: ClipboardList },
+    ],
+  },
   { titre: 'Restaurant', liens: [{ vers: '/admin/tables', libelle: 'Tables et QR codes', Icone: QrCode }] },
   {
     titre: 'Carte',
@@ -29,10 +37,11 @@ export function NavigationAdmin({ onNaviguer }: Props) {
       {SECTIONS.map((section) => (
         <div key={section.titre} className="flex flex-col gap-1">
           <p className="px-3 pb-1 text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">{section.titre}</p>
-          {section.liens.map(({ vers, libelle, Icone }) => (
+          {section.liens.map(({ vers, libelle, Icone, exact }) => (
             <NavLink
               key={vers}
               to={vers}
+              end={exact}
               onClick={onNaviguer}
               className={({ isActive }) =>
                 cn(

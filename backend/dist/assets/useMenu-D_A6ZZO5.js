@@ -1,1 +1,0 @@
-import{S as e}from"./index-BwWYxBj8.js";function t(){let t=e(`menu`);if(!t)throw Error(`useMenu doit être utilisé sous la route /menu/:jeton`);return t}export{t};

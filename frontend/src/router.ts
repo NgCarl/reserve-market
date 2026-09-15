@@ -108,7 +108,42 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        loader: () => redirect('/admin/tables'),
+        handle: { fil: [] },
+        HydrateFallback: PageChargement,
+        lazy: async () => {
+          const [{ TableauDeBordPage }, { chargerTableauDeBord }] = await Promise.all([
+            import('@/routes/admin/TableauDeBordPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: TableauDeBordPage, loader: chargerTableauDeBord }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
+        path: 'commandes',
+        handle: { fil: [{ libelle: 'Commandes du jour' }] },
+        HydrateFallback: PageChargement,
+        lazy: async () => {
+          const [{ CommandesPage }, { chargerCommandesJour }] = await Promise.all([
+            import('@/routes/admin/CommandesPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: CommandesPage, loader: chargerCommandesJour }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
+        path: 'commandes/:commandeId',
+        handle: { fil: [{ libelle: 'Commandes du jour', vers: '/admin/commandes' }, { libelle: 'Détail' }] },
+        HydrateFallback: PageChargement,
+        lazy: async () => {
+          const [{ CommandePage }, { chargerCommandeAdmin }] = await Promise.all([
+            import('@/routes/admin/CommandePage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: CommandePage, loader: chargerCommandeAdmin }
+        },
+        ErrorBoundary: PageErreur,
       },
       {
         path: 'tables',

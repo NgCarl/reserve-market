@@ -2,6 +2,7 @@ import { Router } from 'express'
 import authRoutes from './auth.routes.js'
 import categorieRoutes from './categorie.routes.js'
 import cuisineRoutes from './cuisine.routes.js'
+import gestionRoutes from './gestion.routes.js'
 import menuRoutes from './menu.routes.js'
 import platRoutes from './plat.routes.js'
 import tableRoutes from './table.routes.js'
@@ -16,5 +17,6 @@ apiRoutes.use('/plats', platRoutes)
 apiRoutes.use('/menu', menuRoutes)
 apiRoutes.use('/cuisine', cuisineRoutes)
 apiRoutes.use('/tables', tableRoutes)
+apiRoutes.use('/gestion', gestionRoutes)
 
 export default apiRoutes

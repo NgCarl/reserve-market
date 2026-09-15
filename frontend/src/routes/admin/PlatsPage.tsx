@@ -117,7 +117,7 @@ export function PlatsPage() {
       {visibles.length === 0 ? (
         <p className="px-5 py-10 text-center text-muted-foreground">Aucun plat ne correspond à ces filtres.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-[15px]">
             <thead>
               <tr className="border-b border-border text-xs tracking-[0.15em] text-marque-nuit uppercase">

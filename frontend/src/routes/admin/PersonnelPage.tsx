@@ -65,7 +65,7 @@ export function PersonnelPage() {
 
       {erreur && <p role="alert" className="mx-5 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{erreur}</p>}
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         {/* Sur téléphone, le tableau défile horizontalement : pas de coupure au milieu d'un email. */}
         <table className="w-full min-w-[780px] text-left text-[15px] whitespace-nowrap">
           <thead>
