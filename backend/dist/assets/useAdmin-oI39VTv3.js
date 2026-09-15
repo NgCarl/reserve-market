@@ -1,0 +1,1 @@
+import{S as e}from"./index-BwWYxBj8.js";function t(){let t=e(`admin`);if(!t)throw Error(`useAdmin doit être utilisé sous la route /admin`);return t.utilisateur}export{t};

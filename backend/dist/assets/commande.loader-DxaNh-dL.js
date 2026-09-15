@@ -1,0 +1,1 @@
+import{l as e}from"./index-BwWYxBj8.js";function t({params:t}){let n=encodeURIComponent(t.jeton??``),r=encodeURIComponent(t.commandeId??``);return e(`/menu/${n}/commandes/${r}`)}function n({params:t}){return e(`/menu/${encodeURIComponent(t.jeton??``)}/commandes`)}export{t as chargerCommande,n as chargerCommandesTable};

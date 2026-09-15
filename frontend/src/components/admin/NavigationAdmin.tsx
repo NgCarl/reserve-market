@@ -1,4 +1,4 @@
-import { ChefHat, QrCode, Users } from 'lucide-react'
+import { ChefHat, Layers, QrCode, Users, UtensilsCrossed } from 'lucide-react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 
@@ -6,6 +6,13 @@ import { cn } from '@/lib/utils'
 // Les autres pages (carte, commandes du jour, tableau de bord) s'ajoutent ici au fil de l'étape 7.
 const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: typeof Users }[] }[] = [
   { titre: 'Restaurant', liens: [{ vers: '/admin/tables', libelle: 'Tables et QR codes', Icone: QrCode }] },
+  {
+    titre: 'Carte',
+    liens: [
+      { vers: '/admin/plats', libelle: 'Plats', Icone: UtensilsCrossed },
+      { vers: '/admin/categories', libelle: 'Catégories', Icone: Layers },
+    ],
+  },
   { titre: 'Équipe', liens: [{ vers: '/admin/personnel', libelle: 'Personnel', Icone: Users }] },
   { titre: 'Service', liens: [{ vers: '/cuisine', libelle: 'Écran cuisine', Icone: ChefHat }] },
 ]

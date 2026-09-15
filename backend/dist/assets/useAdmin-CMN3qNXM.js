@@ -1,1 +1,0 @@
-import{x as e}from"./index-l-_3271Z.js";function t(){let t=e(`admin`);if(!t)throw Error(`useAdmin doit être utilisé sous la route /admin`);return t.utilisateur}export{t};

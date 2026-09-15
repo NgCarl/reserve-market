@@ -1,1 +1,0 @@
-import{r as e}from"./index-l-_3271Z.js";async function t({request:t}){return{utilisateur:await e(t,[`SERVEUR`,`ADMIN`])}}export{t as chargerServeur};

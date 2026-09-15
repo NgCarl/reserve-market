@@ -36,6 +36,13 @@ export async function requeteApi<T>(chemin: string, init?: RequestInit): Promise
   return (await reponse.json()) as T
 }
 
+/** Options d'une requête avec un corps JSON. */
+export const enJson = (method: 'POST' | 'PATCH' | 'PUT', corps: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(corps),
+})
+
 /** Message à afficher : la première erreur de champ renvoyée par la validation du serveur, sinon son message général. */
 export function messageErreur(probleme: unknown, parDefaut: string): string {
   if (!(probleme instanceof ErreurApi)) return parDefaut

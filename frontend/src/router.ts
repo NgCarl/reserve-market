@@ -1,8 +1,15 @@
-import { createBrowserRouter, redirect } from 'react-router'
+import { createBrowserRouter, redirect, type ShouldRevalidateFunction } from 'react-router'
 import { SqueletteMenu } from '@/components/menu/SqueletteMenu'
 import { PageChargement } from '@/components/PageChargement'
 import { PageErreur } from '@/components/PageErreur'
 import { PageIntrouvable } from '@/components/PageIntrouvable'
+
+/**
+ * Filtres et onglets du back-office vivent dans l'URL (?categorie=, ?onglet=) : les changer ne relit pas l'API,
+ * sinon chaque clic attendrait le serveur. Une revalidation après un enregistrement garde la même URL et recharge.
+ */
+const sansRechargementPourParametres: ShouldRevalidateFunction = ({ currentUrl, nextUrl, defaultShouldRevalidate }) =>
+  currentUrl.pathname === nextUrl.pathname && currentUrl.search !== nextUrl.search ? false : defaultShouldRevalidate
 
 // Une route par rôle, chargée à la demande (CLAUDE.md §8) : le téléphone du client ne télécharge
 // ni l'écran cuisine, ni la saisie serveur, ni le back-office.
@@ -88,6 +95,7 @@ export const router = createBrowserRouter([
     // Back-office : la route parente vérifie le rôle ADMIN et affiche le menu ; chaque page déclare son fil d'Ariane.
     id: 'admin',
     path: '/admin',
+    shouldRevalidate: sansRechargementPourParametres,
     lazy: async () => {
       const [{ AdminLayout }, { chargerAdmin }] = await Promise.all([
         import('@/routes/admin/AdminLayout'),
@@ -105,6 +113,7 @@ export const router = createBrowserRouter([
       {
         path: 'tables',
         handle: { fil: [{ libelle: 'Tables et QR codes' }] },
+        HydrateFallback: PageChargement,
         lazy: async () => {
           const [{ TablesPage }, { chargerTables }] = await Promise.all([
             import('@/routes/admin/TablesPage'),
@@ -117,6 +126,7 @@ export const router = createBrowserRouter([
       {
         path: 'tables/qr',
         handle: { fil: [{ libelle: 'Tables et QR codes', vers: '/admin/tables' }, { libelle: 'Impression des QR' }] },
+        HydrateFallback: PageChargement,
         lazy: async () => {
           const [{ QrTablesPage }, { chargerTables }] = await Promise.all([
             import('@/routes/admin/QrTablesPage'),
@@ -129,6 +139,7 @@ export const router = createBrowserRouter([
       {
         path: 'tables/:tableId',
         handle: { fil: [{ libelle: 'Tables et QR codes', vers: '/admin/tables' }, { libelle: 'QR code' }] },
+        HydrateFallback: PageChargement,
         lazy: async () => {
           const [{ TablePage }, { chargerTable }] = await Promise.all([
             import('@/routes/admin/TablePage'),
@@ -139,8 +150,50 @@ export const router = createBrowserRouter([
         ErrorBoundary: PageErreur,
       },
       {
+        path: 'plats',
+        handle: { fil: [{ libelle: 'Plats' }] },
+        HydrateFallback: PageChargement,
+        shouldRevalidate: sansRechargementPourParametres,
+        lazy: async () => {
+          const [{ PlatsPage }, { chargerPlats }] = await Promise.all([
+            import('@/routes/admin/PlatsPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: PlatsPage, loader: chargerPlats }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
+        path: 'plats/:platId',
+        handle: { fil: [{ libelle: 'Plats', vers: '/admin/plats' }, { libelle: 'Fiche du plat' }] },
+        HydrateFallback: PageChargement,
+        shouldRevalidate: sansRechargementPourParametres,
+        lazy: async () => {
+          const [{ PlatPage }, { chargerPlat }] = await Promise.all([
+            import('@/routes/admin/PlatPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: PlatPage, loader: chargerPlat }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
+        path: 'categories',
+        handle: { fil: [{ libelle: 'Catégories' }] },
+        HydrateFallback: PageChargement,
+        lazy: async () => {
+          const [{ CategoriesPage }, { chargerCategories }] = await Promise.all([
+            import('@/routes/admin/CategoriesPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: CategoriesPage, loader: chargerCategories }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
         path: 'personnel',
         handle: { fil: [{ libelle: 'Personnel' }] },
+        HydrateFallback: PageChargement,
         lazy: async () => {
           const [{ PersonnelPage }, { chargerPersonnel }] = await Promise.all([
             import('@/routes/admin/PersonnelPage'),

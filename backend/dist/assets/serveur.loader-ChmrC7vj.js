@@ -1,0 +1,1 @@
+import{r as e}from"./index-BwWYxBj8.js";async function t({request:t}){return{utilisateur:await e(t,[`SERVEUR`,`ADMIN`])}}export{t as chargerServeur};
