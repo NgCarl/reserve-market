@@ -1,0 +1,1 @@
+import{r as e}from"./index-DOXibKBv.js";import{n as t}from"./session-WoD9drxB.js";async function n({request:n}){let r=await t(n,[`CUISINE`,`ADMIN`]),{commandes:i}=await e(`/cuisine/commandes`);return{utilisateur:r,commandes:i}}export{n as chargerCuisine};

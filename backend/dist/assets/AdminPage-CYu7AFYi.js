@@ -1,1 +1,0 @@
-import{r as e}from"./index-CI2imjY5.js";import{t}from"./PageAVenir-Cfi7eaCC.js";var n=e();function r(){return(0,n.jsx)(t,{titre:`Back-office`,etape:7})}export{r as AdminPage};

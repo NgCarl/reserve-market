@@ -14,6 +14,15 @@ export const limiteurConnexion = rateLimit({
   message: { message: 'Trop de tentatives de connexion depuis cette adresse. Réessayez dans 15 minutes.' },
 })
 
+// Inscription publique du personnel : 5 demandes par IP par heure, contre la création de comptes en masse.
+export const limiteurInscription = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { message: "Trop de demandes d'inscription depuis cette adresse. Réessayez dans une heure." },
+})
+
 // Contre les commandes en rafale : 10 envois par table sur 10 minutes. Compté par table (jeton du QR)
 // et non par IP, car tout le restaurant partage souvent la même box.
 export const limiteurCommande = rateLimit({

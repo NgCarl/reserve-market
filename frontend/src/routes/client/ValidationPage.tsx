@@ -6,7 +6,6 @@ import { useMenu } from '@/hooks/useMenu'
 import { ErreurApi, requeteApi } from '@/lib/api'
 import { formaterPrix } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useCommandes } from '@/stores/commandes'
 import { nombreArticles, totalPanier, usePanier } from '@/stores/panier'
 import type { CommandeSuivie } from '@/types/commande'
 
@@ -29,7 +28,6 @@ export function ValidationPage() {
   const cleIdempotence = usePanier((etat) => etat.cleIdempotence)
   const changerQuantite = usePanier((etat) => etat.changerQuantite)
   const vider = usePanier((etat) => etat.vider)
-  const memoriser = useCommandes((etat) => etat.memoriser)
   const [chaise, setChaise] = useState<number | null>(null)
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<ErreurEnvoi | null>(null)
@@ -60,7 +58,6 @@ export function ValidationPage() {
           })),
         }),
       })
-      memoriser(jeton, commande.id)
       // Panier vidé une fois le suivi affiché, sinon « Votre panier est vide » apparaît pendant son chargement.
       // Si ce chargement échoue, un nouvel envoi garde la même clé et renvoie la même commande.
       await navigate(`/menu/${jeton}/commandes/${commande.id}`, { replace: true, state: { confirmee: true } })

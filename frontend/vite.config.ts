@@ -16,6 +16,8 @@ export default defineConfig({
     // https://vite.dev/config/server-options
     proxy: {
       '/api': 'http://localhost:3001',
+      // Socket.io : ws relaie aussi la connexion WebSocket, pas seulement les requêtes HTTP.
+      '/socket.io': { target: 'http://localhost:3001', ws: true },
     },
   },
 })

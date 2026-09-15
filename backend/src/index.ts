@@ -9,6 +9,7 @@ import { env } from './lib/env.js'
 import { prisma } from './lib/prisma.js'
 import { apiNotFound, errorHandler } from './middlewares/errorHandler.js'
 import apiRoutes from './routes/index.js'
+import { arreterTempsReel, demarrerTempsReel } from './sockets/io.js'
 
 const app = express()
 
@@ -44,12 +45,16 @@ const serveur = app.listen(env.PORT, (error) => {
   console.info(`API Reserve Market : http://localhost:${env.PORT}/api`)
 })
 
+// Socket.io partage le serveur HTTP d'Express : même port et même origine que l'API (CLAUDE.md §9).
+demarrerTempsReel(serveur)
+
 // Render envoie SIGTERM avant d'arrêter l'instance : on termine les requêtes en cours proprement.
+// io.close() déconnecte d'abord les sockets, qui sinon garderaient le serveur HTTP ouvert, puis le ferme.
 const arreter = (signal: NodeJS.Signals) => {
   console.info(`${signal} reçu, arrêt du serveur`)
-  serveur.close(() => {
-    void prisma.$disconnect().finally(() => process.exit(0))
-  })
+  void arreterTempsReel()
+    .finally(() => prisma.$disconnect())
+    .finally(() => process.exit(0))
 }
 process.once('SIGTERM', arreter)
 process.once('SIGINT', arreter)

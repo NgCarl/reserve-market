@@ -1,6 +1,7 @@
-import { ChevronRight, Search, ShoppingBag } from 'lucide-react'
+import { Search, ShoppingBag } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
+import { BandeauCommandes } from '@/components/menu/BandeauCommandes'
 import { CartePlat } from '@/components/menu/CartePlat'
 import { EnteteMenu } from '@/components/menu/EnteteMenu'
 import { FichePlat } from '@/components/menu/FichePlat'
@@ -13,8 +14,8 @@ import { normaliser } from '@/lib/texte'
 import { cn } from '@/lib/utils'
 import { nombreArticles, totalPanier, usePanier } from '@/stores/panier'
 import { usePreferences, type Disposition } from '@/stores/preferences'
+import { useCommandesTable } from '@/hooks/useCommandesTable'
 import { useMenu } from '@/hooks/useMenu'
-import { useCommandes } from '@/stores/commandes'
 import type { CategorieMenu, PlatMenu } from '@/types/menu'
 
 function filtrer(categories: CategorieMenu[], recherche: string): CategorieMenu[] {
@@ -58,7 +59,7 @@ export function MenuPage() {
   const menu = useMenu()
   const { jeton = '' } = useParams()
   const navigate = useNavigate()
-  const derniereCommande = useCommandes((etat) => etat.parTable[jeton]?.[0])
+  const commandesTable = useCommandesTable(jeton)
   const [recherche, setRecherche] = useState('')
   const [platOuvert, setPlatOuvert] = useState<PlatMenu | null>(null)
   const [panierOuvert, setPanierOuvert] = useState(false)
@@ -76,6 +77,8 @@ export function MenuPage() {
     <div className="mx-auto min-h-dvh max-w-md bg-background pb-28">
       <EnteteMenu numeroTable={menu.table.numero} articles={articles} total={total} onOuvrirPanier={() => setPanierOuvert(true)} />
 
+      {commandesTable && <BandeauCommandes jeton={jeton} commandes={commandesTable} />}
+
       <div className="sticky top-16 z-10 flex flex-col gap-3 bg-white/95 px-4 pt-4 pb-3 backdrop-blur">
         <label className="relative block">
           <span className="sr-only">Rechercher un plat</span>
@@ -91,16 +94,6 @@ export function MenuPage() {
         </label>
         {categories.length > 0 && <OngletsCategories categories={categories} />}
       </div>
-
-      {derniereCommande && (
-        <Link
-          to={`commandes/${derniereCommande.id}`}
-          className="mx-4 mt-3 flex items-center justify-between rounded-2xl bg-primary/8 px-4 py-3 font-semibold text-primary"
-        >
-          Suivre ma commande n° {derniereCommande.id}
-          <ChevronRight className="size-5" />
-        </Link>
-      )}
 
       <div className="flex items-center justify-between px-4 pt-3 pb-1">
         <h1 className="text-3xl font-bold text-primary">Tous les articles</h1>

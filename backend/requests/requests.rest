@@ -22,6 +22,9 @@ Content-Type: application/json
 ### Suivi de la commande (client)
 GET {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}/commandes/{{commande.response.body.$.commande.id}}
 
+### Commandes de la table pendant le service (client)
+GET {{baseUrl}}/menu/{{$dotenv TABLE_JETON}}/commandes
+
 ### Connexion admin
 
 POST {{baseUrl}}/auth/login
@@ -34,6 +37,35 @@ Content-Type: application/json
 
 ### Session courante
 GET {{baseUrl}}/auth/check-auth
+
+### Écran cuisine : commandes en cours (compte CUISINE ou ADMIN)
+GET {{baseUrl}}/cuisine/commandes
+
+### Cuisine : commencer la préparation (commande passée plus haut)
+PATCH {{baseUrl}}/cuisine/lignes/statut
+Content-Type: application/json
+
+{
+  "ligneIds": [{{commande.response.body.$.commande.lignes[0].id}}],
+  "statut": "EN_PREPARATION"
+}
+
+### Cuisine : marquer urgente
+PATCH {{baseUrl}}/cuisine/commandes/urgence
+Content-Type: application/json
+
+{
+  "commandeIds": [{{commande.response.body.$.commande.id}}],
+  "urgent": true
+}
+
+### Cuisine : annuler un article avec son motif
+POST {{baseUrl}}/cuisine/lignes/{{commande.response.body.$.commande.lignes[0].id}}/annulation
+Content-Type: application/json
+
+{
+  "motif": "Rupture de stock"
+}
 
 ### Liste du personnel (admin)
 GET {{baseUrl}}/utilisateurs
@@ -48,6 +80,26 @@ Content-Type: application/json
   "email": "{{$dotenv SERVEUR_EMAIL}}",
   "motDePasse": "{{$dotenv SERVEUR_MOT_DE_PASSE}}",
   "role": "SERVEUR"
+}
+
+### Inscription d'un cuisinier (publique : le compte est créé inactif)
+POST {{baseUrl}}/auth/inscription
+Content-Type: application/json
+
+{
+  "nom": "Cuisinier de test",
+  "email": "{{$dotenv CUISINE_EMAIL}}",
+  "motDePasse": "{{$dotenv CUISINE_MOT_DE_PASSE}}",
+  "role": "CUISINE"
+}
+
+### Activer un compte ou changer son rôle (admin)
+# @prompt utilisateurId Id du compte, visible dans la liste du personnel
+PATCH {{baseUrl}}/utilisateurs/{{utilisateurId}}
+Content-Type: application/json
+
+{
+  "actif": true
 }
 
 ### Connexion avec un mauvais mot de passe (3 échecs : suspension 15 min)

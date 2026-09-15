@@ -31,5 +31,19 @@ export async function requeteApi<T>(chemin: string, init?: RequestInit): Promise
     const details = typeof corps === 'object' && corps !== null && 'details' in corps ? corps.details : undefined
     throw new ErreurApi(reponse.status, message, details)
   }
+  // 204 No Content (déconnexion) : aucun corps à lire.
+  if (reponse.status === 204) return undefined as T
   return (await reponse.json()) as T
+}
+
+/** Message à afficher : la première erreur de champ renvoyée par la validation du serveur, sinon son message général. */
+export function messageErreur(probleme: unknown, parDefaut: string): string {
+  if (!(probleme instanceof ErreurApi)) return parDefaut
+  const { details } = probleme
+  if (typeof details === 'object' && details !== null && 'fieldErrors' in details && typeof details.fieldErrors === 'object' && details.fieldErrors !== null) {
+    for (const messages of Object.values(details.fieldErrors)) {
+      if (Array.isArray(messages) && typeof messages[0] === 'string') return messages[0]
+    }
+  }
+  return probleme.message
 }

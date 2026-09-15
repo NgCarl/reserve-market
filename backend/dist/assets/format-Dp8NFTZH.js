@@ -1,0 +1,1 @@
+var e=new Intl.NumberFormat(`fr-FR`),t=t=>`${e.format(t)} FCFA`;export{t};

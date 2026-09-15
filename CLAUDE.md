@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 0. État actuel du dépôt
 
-**Étapes 1 à 5 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel, la gestion de la carte (catégories, plats, photos Cloudinary) et la création de commande par le client. `frontend/` contient la page menu publique `/menu/:jeton`, le panier, la validation (`/menu/:jeton/commande`) et le suivi (`/menu/:jeton/commandes/:id`) ; les autres rôles sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
+**Étapes 1 à 6 du §13 terminées** : `backend/` contient Prisma (schéma, migration initiale, seed de la carte et du compte admin), le serveur Express, l'authentification du personnel, la gestion de la carte (catégories, plats, photos Cloudinary), la création de commande par le client, l'API de l'écran cuisine et le temps réel Socket.io. `frontend/` contient la page menu publique `/menu/:jeton`, le panier, la validation (`/menu/:jeton/commande`), le suivi en direct (`/menu/:jeton/commandes/:id`), la connexion du personnel (`/connexion`) et l'écran cuisine (`/cuisine`) ; `/serveur` et `/admin` sont des pages d'attente. Aucun test automatisé : l'API se vérifie avec `backend/requests/requests.rest`.
 
 ### Commandes (depuis `backend/`)
 
@@ -57,7 +57,9 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - **Connexion** : même message et même temps de réponse que l'email existe ou non.
   - **Suspension progressive** (`src/services/tentatives.service.ts`), par couple email + IP : 3 échecs de suite suspendent la connexion 15 minutes, chaque série de 3 échecs suivante 30 minutes. Une connexion réussie remet tout à zéro. Suivi en mémoire, perdu au redémarrage.
   - **Filet par IP** : 30 échecs par IP sur 15 minutes, via `express-rate-limit`. `TRUST_PROXY_HOPS=1` sur Render, sinon toutes les requêtes semblent venir de la même IP.
-  - **Écartés volontairement** : inscription publique (seul un admin crée les comptes : `POST /api/utilisateurs`), vérification d'email et mot de passe oublié par email (pas de service d'envoi d'emails en v1).
+  - **Inscription du personnel** (décision du 2026-09-14) : `POST /api/auth/inscription` crée un compte **inactif**, en rôle CUISINE ou SERVEUR uniquement, jamais ADMIN. Limite : 5 demandes par IP par heure. Si l'email existe déjà, rien n'est créé et la réponse est la même (202), pour ne pas révéler les comptes existants.
+  - **Activation** : l'admin active le compte, change le rôle ou désactive depuis `/admin` (`PATCH /api/utilisateurs/:id`), jamais sur son propre compte. Connexion à un compte inactif avec le bon mot de passe : 403 « pas encore activé » ; avec un mauvais mot de passe : 401 générique. Les clients n'ont jamais de compte.
+  - **Écartés volontairement** : vérification d'email et mot de passe oublié par email (pas de service d'envoi d'emails en v1).
 - **Utilisateur connecté** : `res.locals.utilisateur`, typé dans `src/types/express.d.ts`. Dans un contrôleur, le lire avec `utilisateurConnecte(res)`.
 - **Photos des plats : envoi direct vers Cloudinary** (`src/services/photo.service.ts`).
   1. `POST /api/plats/photo/signature` renvoie l'URL d'envoi et des champs signés, valables 1 h.
@@ -70,7 +72,7 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - Chaque rôle est une route `lazy` : le client ne télécharge ni la cuisine, ni la saisie serveur, ni le back-office.
   - Le menu est chargé par `routes/client/menu.loader.ts` avant l'affichage de la page. Pendant ce temps, la route affiche `HydrateFallback`, le squelette.
   - Un squelette en HTML et CSS pur est aussi dans `index.html` : il est visible avant même le téléchargement du JavaScript.
-- **Budget §8, mesuré au build** : 135,8 Ko gzip de JavaScript pour `/menu/:jeton` (99,7 Ko pour l'entrée, surtout React et React Router ; 21 Ko pour la page, 11,8 Ko de composants Radix, 3 Ko pour les stores). La validation (2,3 Ko) et le suivi (2,8 Ko) ne se chargent qu'à l'ouverture de leur page. Remesurer après chaque ajout de dépendance côté client.
+- **Budget §8, mesuré dans le navigateur** (fichiers réellement chargés par `/menu/:jeton`, gzip niveau 9) : 136,9 Ko de JavaScript, dont 92,3 Ko pour l'entrée (surtout React et React Router), environ 30 Ko de morceaux partagés (Radix, utilitaires) et 7,1 Ko pour la page. Le client Socket.io (12,9 Ko) n'est chargé que par le suivi et l'écran cuisine, jamais par le menu. Remesurer après chaque ajout de dépendance côté client : Vite redécoupe les morceaux partagés, la taille d'un seul fichier ne suffit pas.
   - Police du téléphone (Geist retirée), logo WebP de 6 Ko.
   - Photos chargées au défilement, avec un aperçu flouté (`photoFloueUrl`), et un bouton « sans photos ».
   - Le backend compresse ses réponses en gzip (`compression`).
@@ -85,9 +87,24 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - Clé déjà connue : 200 avec la commande existante, au lieu de 201. Deux envois simultanés : la contrainte `UNIQUE` rejette le second (P2002), puis on renvoie la commande créée.
   - La place est portée par chaque ligne (`LigneCommande.chaise`), une commande client n'en a qu'une.
   - Limite de 10 envois par table sur 10 minutes, comptée par jeton et non par IP.
-  - Suivi : `GET /api/menu/:jeton/commandes/:id`, limité à la table du QR et aux 12 dernières heures. Statut global dérivé des lignes (`statutCommande`). En attendant Socket.io (étape 6), la page relit le suivi toutes les 20 s.
+  - Suivi : `GET /api/menu/:jeton/commandes/:id`, limité à la table du QR et aux 12 dernières heures. Statut global dérivé des lignes (`statutCommande`). La page se connecte à Socket.io avec le jeton de la table et relit la commande à chaque événement qui la concerne, et à chaque reconnexion.
   - Le menu est chargé par la route parente `id: 'menu'` (`useMenu()`), qui n'est rechargée qu'au changement de table.
-  - Les commandes envoyées depuis le téléphone sont mémorisées par table (`stores/commandes.ts`) pour le lien « Suivre ma commande ».
+  - Retrouver ses commandes : `GET /api/menu/:jeton/commandes` renvoie les commandes de la table sur 12 h, tant qu'elles ne sont pas encaissées. La carte les lit après son affichage (`useCommandesTable`) pour le bandeau « Suivre ma commande », et la page `/menu/:jeton/commandes` les liste. Source serveur, jamais la mémoire du téléphone : une commande reste accessible après un rechargement, un nouveau scan ou depuis un autre téléphone de la table. Jusqu'à l'encaissement par le serveur (étape 8), un nouveau groupe à la même table voit aussi les commandes non encaissées du précédent.
+- **Formats de commande** (`src/services/commande.format.ts`) : format public (client) et format cuisine (personnel), dans un fichier à part pour que `commande.service`, `cuisine.service` et `diffusion.service` les partagent sans import circulaire.
+- **Temps réel** (`src/sockets/io.ts`, Socket.io 4.8.3) :
+  - Attaché au serveur HTTP d'Express : même port et même origine, sans option CORS. En dev, Vite relaie `/socket.io` avec `ws: true`.
+  - Authentification au handshake : `auth.jetonTable` pour un client, sinon le cookie `session`, lu dans l'en-tête `Cookie` et vérifié par `utilisateurDepuisJeton`. Une connexion refusée n'est pas retentée par le client : l'écran cuisine renvoie alors vers `/connexion`.
+  - Salles §9 : ADMIN et CUISINE rejoignent `:cuisine`, ADMIN et SERVEUR rejoignent `:serveur`, un client rejoint la salle de sa table.
+  - `diffuser(ids, événement)` (`src/services/diffusion.service.ts`) s'appelle après l'écriture, sans attendre. Il relit la commande et envoie le format cuisine au personnel, et le format public à la table (sauf `commande:nouvelle`). Un échec est journalisé, jamais remonté à la requête. Hors serveur HTTP (seed, scripts), la diffusion est ignorée.
+  - Chaque événement porte la commande entière : l'écran remplace la commande par son id, rien à recalculer. À chaque connexion ou reconnexion, l'écran relit l'état par l'API (rattrapage §7).
+- **Écran cuisine** (`/api/cuisine/*`, rôles CUISINE et ADMIN ; `frontend/src/routes/cuisine/`) :
+  - `PATCH /lignes/statut` `{ ligneIds, statut }` : `EN_PREPARATION` depuis `RECUE` ; `PRETE` depuis `RECUE` ou `EN_PREPARATION` (une boisson se sert sans préparation). Un seul `updateMany` conditionnel dans une transaction : si une ligne a déjà changé ailleurs, rien n'est modifié et on renvoie 409. `SERVIE` est refusée (400) : c'est le rôle du serveur.
+  - `POST /lignes/:id/annulation` `{ motif }` (3 à 200 caractères) : possible tant que la ligne n'est ni servie ni annulée. Le stock n'est pas réincrémenté.
+  - `PATCH /commandes/urgence` `{ commandeIds, urgent }`. `GET /commandes` : commandes des 12 dernières heures qui ont encore une ligne en cours.
+  - Interface (structure du K.D.S FoodScan) : tableau des articles (quantités cumulées à préparer), filtres et recherche, colonnes Cuisine et Bar. Une carte réunit les lignes d'une même table et d'un même poste (`lib/cuisine.ts`), avec une carte à part pour les lignes prêtes. Bordure verte, orange ou rouge selon l'attente (10 et 20 min).
+  - Carillon généré par Web Audio (`lib/son.ts`) : le navigateur exige un appui, d'où le bouton jaune « Activer le son » à toucher au début du service.
+- **Back-office** (`/admin`, ADMIN) : `MiseEnPageAdmin` reprend la structure FoodScan (menu latéral groupé, fil d'Ariane, carte blanche avec tableau). Pour l'instant, une seule page : **Personnel** (`routes/admin/PersonnelPage.tsx`).
+- **Connexion du personnel** (`/connexion`, onglets Connexion et Inscription ; `?mode=inscription` ouvre le second) : `exigerSession(request, rôles)` (`lib/session.ts`) dans le loader de chaque écran du personnel. Sans session, redirection vers `/connexion?retour=…` (chemin interne uniquement) ; rôle non autorisé : 403 affiché par `PageErreur`. Après connexion, retour à la page demandée, sinon à l'accueil du rôle.
 - **shadcn/ui** (style `radix-nova`) : `cn` vient du paquet officiel `cn`, et non de `clsx` + `tailwind-merge`. Après chaque `shadcn add`, lancer `npx eslint . --fix` pour remettre les fichiers au style du projet.
 - **Photos de démonstration** : venues de Wikimedia Commons, uniquement sous licences autorisant l'usage commercial (CC0, domaine public, CC BY, CC BY-SA). Chaque photo a été choisie à l'œil : jamais la bouteille d'une autre marque ; sans photo fiable, l'article reste sans photo.
   - Les licences CC BY et CC BY-SA imposent de citer l'auteur. Le crédit est enregistré dans `Plat.photoCredit` et affiché sous la photo, dans la fiche du plat.
@@ -410,13 +427,3 @@ Chaque étape est démontrable au client. C'est volontaire : elle maintient son 
 
 ---
 
-## 14. Refus systématiques
-
-- Copie de code, CSS ou assets de FoodScan (référence fonctionnelle uniquement, §2)
-- `Float` sur un montant
-- Logique métier dans un contrôleur
-- Endpoint sans validation Zod
-- Suppression physique d'un plat
-- `any`, `@ts-ignore`, `try/catch` vide
-- Ajout d'une dépendance ou d'une couche d'infrastructure sans problème réel identifié
-- Secrets, clés Cloudinary ou chaînes de connexion dans le dépôt

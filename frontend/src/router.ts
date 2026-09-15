@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router'
 import { SqueletteMenu } from '@/components/menu/SqueletteMenu'
+import { PageChargement } from '@/components/PageChargement'
 import { PageErreur } from '@/components/PageErreur'
 import { PageIntrouvable } from '@/components/PageIntrouvable'
 
@@ -26,6 +27,17 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('@/routes/client/ValidationPage')).ValidationPage }),
       },
       {
+        path: 'commandes',
+        lazy: async () => {
+          const [{ MesCommandesPage }, { chargerCommandesTable }] = await Promise.all([
+            import('@/routes/client/MesCommandesPage'),
+            import('@/routes/client/commande.loader'),
+          ])
+          return { Component: MesCommandesPage, loader: chargerCommandesTable }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
         path: 'commandes/:commandeId',
         lazy: async () => {
           const [{ SuiviPage }, { chargerCommande }] = await Promise.all([
@@ -39,8 +51,20 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: '/connexion',
+    lazy: async () => ({ Component: (await import('@/routes/connexion/ConnexionPage')).ConnexionPage }),
+    ErrorBoundary: PageErreur,
+  },
+  {
     path: '/cuisine',
-    lazy: async () => ({ Component: (await import('@/routes/cuisine/CuisinePage')).CuisinePage }),
+    lazy: async () => {
+      const [{ CuisinePage }, { chargerCuisine }] = await Promise.all([
+        import('@/routes/cuisine/CuisinePage'),
+        import('@/routes/cuisine/cuisine.loader'),
+      ])
+      return { Component: CuisinePage, loader: chargerCuisine }
+    },
+    HydrateFallback: PageChargement,
     ErrorBoundary: PageErreur,
   },
   {
@@ -50,7 +74,14 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
-    lazy: async () => ({ Component: (await import('@/routes/admin/AdminPage')).AdminPage }),
+    lazy: async () => {
+      const [{ PersonnelPage }, { chargerPersonnel }] = await Promise.all([
+        import('@/routes/admin/PersonnelPage'),
+        import('@/routes/admin/admin.loader'),
+      ])
+      return { Component: PersonnelPage, loader: chargerPersonnel }
+    },
+    HydrateFallback: PageChargement,
     ErrorBoundary: PageErreur,
   },
   {

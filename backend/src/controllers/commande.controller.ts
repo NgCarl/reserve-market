@@ -1,6 +1,10 @@
 import type { RequestHandler } from 'express'
 import type { NouvelleCommande } from '../schemas/commande.schema.js'
-import { creerCommandeClient, obtenirCommandeClient } from '../services/commande.service.js'
+import { creerCommandeClient, listerCommandesTable, obtenirCommandeClient } from '../services/commande.service.js'
+
+export const listerCommandesDeLaTable: RequestHandler<{ jeton: string }> = async (req, res) => {
+  res.json({ commandes: await listerCommandesTable(req.params.jeton) })
+}
 
 export const creerCommande: RequestHandler<{ jeton: string }, unknown, NouvelleCommande> = async (req, res) => {
   const { commande, creee } = await creerCommandeClient(req.params.jeton, req.body)

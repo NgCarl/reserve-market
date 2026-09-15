@@ -7,3 +7,7 @@ export function chargerCommande({ params }: LoaderFunctionArgs): Promise<{ comma
   const commandeId = encodeURIComponent(params.commandeId ?? '')
   return requeteApi<{ commande: CommandeSuivie }>(`/menu/${jeton}/commandes/${commandeId}`)
 }
+
+export function chargerCommandesTable({ params }: LoaderFunctionArgs): Promise<{ commandes: CommandeSuivie[] }> {
+  return requeteApi<{ commandes: CommandeSuivie[] }>(`/menu/${encodeURIComponent(params.jeton ?? '')}/commandes`)
+}

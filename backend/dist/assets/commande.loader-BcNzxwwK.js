@@ -1,1 +1,0 @@
-import{n as e}from"./index-CI2imjY5.js";function t({params:t}){let n=encodeURIComponent(t.jeton??``),r=encodeURIComponent(t.commandeId??``);return e(`/menu/${n}/commandes/${r}`)}export{t as chargerCommande};

@@ -1,70 +1,14 @@
-import { Prisma, type Poste, type StatutLigne } from '../generated/prisma/client.js'
+import { Prisma, type Poste } from '../generated/prisma/client.js'
 import { ConflictError, NotFoundError, ValidationError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import type { NouvelleCommande } from '../schemas/commande.schema.js'
+import { formaterCommande, selectCommandePublique, type CommandePublique } from './commande.format.js'
+import { diffuser } from './diffusion.service.js'
 
 /** Une commande reste consultable par le client pendant un service. */
 const DUREE_SUIVI_MS = 12 * 60 * 60 * 1000
 
 const MESSAGE_TABLE = 'Table introuvable : scannez à nouveau le QR code posé sur votre table'
-
-const selectCommandePublique = {
-  id: true,
-  createdAt: true,
-  table: { select: { numero: true } },
-  lignes: {
-    orderBy: { id: 'asc' },
-    select: {
-      id: true,
-      nomPlat: true,
-      quantite: true,
-      prixUnitaire: true,
-      chaise: true,
-      note: true,
-      statut: true,
-      options: { orderBy: { id: 'asc' }, select: { libelle: true } },
-    },
-  },
-} as const satisfies Prisma.CommandeSelect
-
-type CommandeBrute = Prisma.CommandeGetPayload<{ select: typeof selectCommandePublique }>
-
-const ORDRE_STATUTS: readonly StatutLigne[] = ['RECUE', 'EN_PREPARATION', 'PRETE', 'SERVIE']
-
-/**
- * Statut vu par le client. Le statut est porté par chaque ligne (le bar et la cuisine avancent séparément) :
- * la commande est « en préparation » dès qu'une ligne a commencé, « prête » quand toutes le sont.
- */
-export function statutCommande(statuts: readonly StatutLigne[]): StatutLigne {
-  const rangs = statuts.filter((statut) => statut !== 'ANNULEE').map((statut) => ORDRE_STATUTS.indexOf(statut))
-  if (rangs.length === 0) return 'ANNULEE'
-  const moinsAvancee = Math.min(...rangs)
-  if (moinsAvancee === 0 && Math.max(...rangs) > 0) return 'EN_PREPARATION'
-  return ORDRE_STATUTS[moinsAvancee] ?? 'RECUE'
-}
-
-function formaterCommande(commande: CommandeBrute) {
-  const actives = commande.lignes.filter((ligne) => ligne.statut !== 'ANNULEE')
-  return {
-    id: commande.id,
-    creeLe: commande.createdAt.toISOString(),
-    table: commande.table,
-    chaise: commande.lignes[0]?.chaise ?? null,
-    statut: statutCommande(commande.lignes.map((ligne) => ligne.statut)),
-    total: actives.reduce((total, ligne) => total + ligne.prixUnitaire * ligne.quantite, 0),
-    lignes: commande.lignes.map((ligne) => ({
-      id: ligne.id,
-      nomPlat: ligne.nomPlat,
-      quantite: ligne.quantite,
-      prixUnitaire: ligne.prixUnitaire,
-      note: ligne.note,
-      statut: ligne.statut,
-      options: ligne.options.map((option) => option.libelle),
-    })),
-  }
-}
-
-export type CommandePublique = ReturnType<typeof formaterCommande>
 
 interface LignePreparee {
   platId: number
@@ -222,6 +166,8 @@ export async function creerCommandeClient(
       },
       { timeout: 15_000 },
     )
+    // Pas d'acceptation manuelle (§6) : la commande part aussitôt vers la cuisine, le bar et les serveurs.
+    diffuser([commande.id], 'commande:nouvelle')
     return { commande: formaterCommande(commande), creee: true }
   } catch (error) {
     // Deux envois simultanés de la même commande : la contrainte UNIQUE a rejeté le second, stocks compris.
@@ -245,4 +191,21 @@ export async function obtenirCommandeClient(jeton: string, commandeId: number): 
   })
   if (!commande) throw new NotFoundError('Commande introuvable')
   return formaterCommande(commande)
+}
+
+/**
+ * Commandes de la table pendant le service, tant qu'elles ne sont pas encaissées.
+ * Retrouvées par le serveur et non par la mémoire du téléphone : elles restent accessibles après un
+ * rechargement, un nouveau scan du QR ou depuis un autre téléphone de la même table.
+ */
+export async function listerCommandesTable(jeton: string): Promise<CommandePublique[]> {
+  const table = await prisma.table.findFirst({ where: { jeton, actif: true }, select: { id: true } })
+  if (!table) throw new NotFoundError(MESSAGE_TABLE)
+  const commandes = await prisma.commande.findMany({
+    where: { tableId: table.id, encaisseeAt: null, createdAt: { gte: new Date(Date.now() - DUREE_SUIVI_MS) } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    select: selectCommandePublique,
+  })
+  return commandes.map((commande) => formaterCommande(commande))
 }

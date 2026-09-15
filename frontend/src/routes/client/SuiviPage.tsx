@@ -1,9 +1,12 @@
 import { ArrowLeft, Bell, Check, ChefHat, ClipboardList, RefreshCw, Utensils } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, useLoaderData, useLocation, useNavigate, useParams, useRevalidator } from 'react-router'
+import { io, type Socket } from 'socket.io-client'
 import { formaterPrix } from '@/lib/format'
+import { LIBELLES_STATUT } from '@/lib/statut'
 import { cn } from '@/lib/utils'
-import type { StatutCommande } from '@/types/commande'
+import type { CommandeSuivie, StatutCommande } from '@/types/commande'
+import type { EvenementsTable } from '@/types/temps-reel'
 import type { chargerCommande } from './commande.loader'
 
 const ETAPES: { statut: StatutCommande; libelle: string; Icone: typeof Check }[] = [
@@ -12,14 +15,6 @@ const ETAPES: { statut: StatutCommande; libelle: string; Icone: typeof Check }[]
   { statut: 'PRETE', libelle: 'Prête', Icone: Bell },
   { statut: 'SERVIE', libelle: 'Servie', Icone: Utensils },
 ]
-
-const LIBELLES: Record<StatutCommande, string> = {
-  RECUE: 'Reçue',
-  EN_PREPARATION: 'En préparation',
-  PRETE: 'Prête',
-  SERVIE: 'Servie',
-  ANNULEE: 'Annulée',
-}
 
 const heure = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
 
@@ -33,15 +28,29 @@ export function SuiviPage() {
   const confirmee = (location.state as { confirmee?: boolean } | null)?.confirmee === true
   const terminee = commande.statut === 'SERVIE' || commande.statut === 'ANNULEE'
   const rang = ETAPES.findIndex((etape) => etape.statut === commande.statut)
+  const commandeId = commande.id
+
+  // Dernière version de revalidate, sans recréer la connexion temps réel à chaque rendu.
+  const revalider = useRef(revalidate)
+  useEffect(() => {
+    revalider.current = revalidate
+  })
 
   useEffect(() => {
     if (terminee) return
-    // En attendant le temps réel (étape 6) : nouvelle lecture toutes les 20 s, seulement quand la page est à l'écran.
-    const minuteur = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void revalidate()
-    }, 20_000)
-    return () => window.clearInterval(minuteur)
-  }, [terminee, revalidate])
+    // Temps réel (§9) : le serveur prévient la table à chaque changement, la page relit alors la commande.
+    const socket: Socket<EvenementsTable> = io({ auth: { jetonTable: jeton } })
+    const relire = (miseAJour: CommandeSuivie) => {
+      if (miseAJour.id === commandeId) void revalider.current()
+    }
+    // À chaque connexion, y compris après une coupure : un changement a pu être manqué (§7).
+    socket.on('connect', () => void revalider.current())
+    socket.on('commande:statut', relire)
+    socket.on('commande:annulee', relire)
+    return () => {
+      socket.disconnect()
+    }
+  }, [terminee, jeton, commandeId])
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-background">
@@ -113,7 +122,7 @@ export function SuiviPage() {
                     <span key={option} className="text-sm text-muted-foreground">{option}</span>
                   ))}
                   {ligne.note && <span className="text-sm text-muted-foreground italic">« {ligne.note} »</span>}
-                  <span className="text-xs font-semibold text-primary">{LIBELLES[ligne.statut]}</span>
+                  <span className="text-xs font-semibold text-primary">{LIBELLES_STATUT[ligne.statut]}</span>
                 </div>
                 <span className="font-bold whitespace-nowrap text-marque-nuit">{formaterPrix(ligne.prixUnitaire * ligne.quantite)}</span>
               </li>
@@ -127,6 +136,12 @@ export function SuiviPage() {
 
         <Link to={`/menu/${jeton}`} className="flex h-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
           Commander autre chose
+        </Link>
+        <Link
+          to={`/menu/${jeton}/commandes`}
+          className="flex h-12 items-center justify-center rounded-full border-2 border-primary/20 font-semibold text-primary"
+        >
+          Toutes les commandes de la table
         </Link>
       </main>
 

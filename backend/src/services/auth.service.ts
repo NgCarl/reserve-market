@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import { env } from '../lib/env.js'
-import { TooManyRequestsError, UnauthorizedError } from '../lib/errors.js'
+import { ForbiddenError, TooManyRequestsError, UnauthorizedError } from '../lib/errors.js'
 import { hacherMotDePasse, verifierMotDePasse } from '../lib/password.js'
 import { prisma } from '../lib/prisma.js'
 import { DUREE_SESSION_MS } from '../lib/session.js'
@@ -14,9 +14,9 @@ import {
 } from './tentatives.service.js'
 import { selectUtilisateurPublic, type UtilisateurPublic } from './utilisateur.service.js'
 
-// Même message pour un email inconnu, un compte désactivé ou un mauvais mot de passe :
-// la réponse ne révèle pas quels comptes existent.
+// Même message pour un email inconnu ou un mauvais mot de passe : la réponse ne révèle pas quels comptes existent.
 const MESSAGE_IDENTIFIANTS = 'Email ou mot de passe incorrect'
+const MESSAGE_INACTIF = "Compte pas encore activé : l'administrateur du restaurant doit valider votre accès."
 const MESSAGE_SESSION = 'Session invalide ou expirée'
 
 // Vérifié à la place du vrai hash quand l'email est inconnu : la réponse prend le même temps
@@ -31,14 +31,16 @@ function erreurSuspension(attenteMs: number): TooManyRequestsError {
   )
 }
 
-/** Renvoie l'utilisateur si les identifiants sont valides et le compte actif, null sinon. */
-async function verifierIdentifiants(email: string, motDePasse: string): Promise<UtilisateurPublic | null> {
+/** L'utilisateur si les identifiants sont valides, « inactif » si le compte attend son activation, null sinon. */
+async function verifierIdentifiants(email: string, motDePasse: string): Promise<UtilisateurPublic | 'inactif' | null> {
   const compte = await prisma.utilisateur.findUnique({
     where: { email },
     select: { ...selectUtilisateurPublic, actif: true, motDePasseHash: true },
   })
   const motDePasseValide = await verifierMotDePasse(motDePasse, compte?.motDePasseHash ?? (await hashLeurre))
-  if (!compte || !compte.actif || !motDePasseValide) return null
+  if (!compte || !motDePasseValide) return null
+  // Dit seulement à qui connaît le bon mot de passe : impossible de découvrir ainsi quels comptes existent.
+  if (!compte.actif) return 'inactif'
   return { id: compte.id, restaurantId: compte.restaurantId, nom: compte.nom, email: compte.email, role: compte.role }
 }
 
@@ -51,7 +53,7 @@ export async function connecter(
   const attente = reserverTentative(cle)
   if (attente > 0) throw erreurSuspension(attente)
 
-  let utilisateur: UtilisateurPublic | null
+  let utilisateur: UtilisateurPublic | 'inactif' | null
   try {
     utilisateur = await verifierIdentifiants(email, motDePasse)
   } catch (error) {
@@ -59,6 +61,11 @@ export async function connecter(
     throw error
   }
 
+  if (utilisateur === 'inactif') {
+    // Bon mot de passe : ce n'est pas un échec, la tentative ne compte pas pour la suspension.
+    annulerTentative(cle)
+    throw new ForbiddenError(MESSAGE_INACTIF)
+  }
   if (!utilisateur) {
     const suspension = enregistrerEchec(cle)
     throw suspension > 0 ? erreurSuspension(suspension) : new UnauthorizedError(MESSAGE_IDENTIFIANTS)

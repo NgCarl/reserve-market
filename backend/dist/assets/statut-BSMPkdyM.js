@@ -1,0 +1,1 @@
+var e={RECUE:`Reçue`,EN_PREPARATION:`En préparation`,PRETE:`Prête`,SERVIE:`Servie`,ANNULEE:`Annulée`},t={RECUE:`bg-primary/10 text-primary`,EN_PREPARATION:`bg-amber-100 text-amber-900`,PRETE:`bg-emerald-100 text-emerald-800`,SERVIE:`bg-tuile text-marque-nuit`,ANNULEE:`bg-red-100 text-red-700`};export{e as n,t};
