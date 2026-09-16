@@ -95,7 +95,7 @@ export function MenuPage() {
             className="h-12 w-full rounded-full bg-tuile pr-4 pl-12 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-primary/20"
           />
         </label>
-        {categories.length > 0 && <OngletsCategories categories={categories} />}
+        {categories.length > 0 && <OngletsCategories categories={categories} afficherPhotos={afficherPhotos} />}
       </div>
 
       <div className="flex items-center justify-between px-4 pt-3 pb-1">

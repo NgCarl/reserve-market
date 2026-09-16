@@ -5,10 +5,12 @@ import type { CategorieMenu } from '@/types/menu'
 
 interface Props {
   categories: CategorieMenu[]
+  /** Suit le réglage de la carte : sans photos, les vignettes ne sont pas téléchargées non plus. */
+  afficherPhotos: boolean
 }
 
 /** Onglets défilants : un appui fait défiler jusqu'à la catégorie, le défilement met l'onglet en surbrillance. */
-export function OngletsCategories({ categories }: Props) {
+export function OngletsCategories({ categories, afficherPhotos }: Props) {
   const [active, setActive] = useState<number | null>(categories[0]?.id ?? null)
   const onglets = useRef(new Map<number, HTMLButtonElement>())
 
@@ -51,12 +53,12 @@ export function OngletsCategories({ categories }: Props) {
           aria-current={active === categorie.id ? 'true' : undefined}
           className={cn(
             'flex h-12 shrink-0 items-center gap-2.5 rounded-full pr-5 text-[15px] font-semibold whitespace-nowrap transition-colors',
-            categorie.imageUrl ? 'pl-1.5' : 'pl-5',
+            afficherPhotos && categorie.imageUrl ? 'pl-1.5' : 'pl-5',
             active === categorie.id ? 'bg-primary text-primary-foreground' : 'bg-tuile text-marque-nuit',
           )}
         >
           {/* Vignette de la catégorie, comme les pictogrammes « Non végétarien » et « Légumes » de FoodScan. */}
-          {categorie.imageUrl && (
+          {afficherPhotos && categorie.imageUrl && (
             <img src={categorie.imageUrl} alt="" width={36} height={36} loading="lazy" className="size-9 rounded-full object-cover" />
           )}
           {categorie.nom}
