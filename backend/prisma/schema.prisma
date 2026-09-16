@@ -16,7 +16,10 @@ datasource db {
 
 enum Role {
   ADMIN
+  /// Prépare les plats : ne voit que les lignes du poste CUISINE.
   CUISINE
+  /// Prépare les boissons : ne voit que les lignes du poste BAR (§10).
+  BAR
   SERVEUR
 }
 

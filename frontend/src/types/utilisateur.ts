@@ -1,6 +1,6 @@
 // Miroir de UtilisateurPublic et de la vue du personnel (backend/src/services/utilisateur.service.ts).
 
-export type Role = 'ADMIN' | 'CUISINE' | 'SERVEUR'
+export type Role = 'ADMIN' | 'CUISINE' | 'BAR' | 'SERVEUR'
 
 export interface Utilisateur {
   id: number

@@ -34,7 +34,7 @@ export const inscriptionSchema = z.strictObject({
   nom: nomSchema,
   email: emailSchema,
   motDePasse: motDePasseSchema,
-  role: z.enum(['CUISINE', 'SERVEUR'], { error: 'Poste attendu : cuisine ou serveur' }),
+  role: z.enum(['CUISINE', 'BAR', 'SERVEUR'], { error: 'Poste attendu : cuisine, bar ou serveur' }),
 })
 
 export type Inscription = z.infer<typeof inscriptionSchema>

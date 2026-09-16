@@ -8,7 +8,8 @@ import type { chargerPersonnel } from './admin.loader'
 
 const ROLES: { valeur: Role; libelle: string }[] = [
   { valeur: 'ADMIN', libelle: 'Administrateur' },
-  { valeur: 'CUISINE', libelle: 'Cuisine / bar' },
+  { valeur: 'CUISINE', libelle: 'Cuisine' },
+  { valeur: 'BAR', libelle: 'Bar' },
   { valeur: 'SERVEUR', libelle: 'Serveur' },
 ]
 

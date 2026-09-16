@@ -34,6 +34,7 @@ type ServeurTempsReel = Server<DefaultEventsMap, EvenementsServeur, DefaultEvent
 
 export const salles = {
   cuisine: (restaurantId: number) => `room:restaurant:${restaurantId}:cuisine`,
+  bar: (restaurantId: number) => `room:restaurant:${restaurantId}:bar`,
   serveur: (restaurantId: number) => `room:restaurant:${restaurantId}:serveur`,
   table: (restaurantId: number, tableId: number) => `room:restaurant:${restaurantId}:table:${tableId}`,
 }
@@ -103,8 +104,9 @@ export function demarrerTempsReel(serveurHttp: HttpServer): void {
       void socket.join(salles.table(donnees.restaurantId, donnees.tableId))
       return
     }
-    // L'admin voit tout : il peut ouvrir l'écran cuisine comme le téléphone du serveur.
+    // L'admin voit tout : les deux files de préparation comme le téléphone du serveur.
     if (donnees.role === 'ADMIN' || donnees.role === 'CUISINE') void socket.join(salles.cuisine(donnees.restaurantId))
+    if (donnees.role === 'ADMIN' || donnees.role === 'BAR') void socket.join(salles.bar(donnees.restaurantId))
     if (donnees.role === 'ADMIN' || donnees.role === 'SERVEUR') void socket.join(salles.serveur(donnees.restaurantId))
   })
 }

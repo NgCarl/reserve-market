@@ -23,8 +23,9 @@ async function diffuserCommande(commandeId: number, evenement: EvenementCommande
   if (!commande) return
 
   const { restaurantId } = commande
-  // Un admin présent dans les deux salles ne reçoit l'événement qu'une fois.
-  io.to(salles.cuisine(restaurantId)).to(salles.serveur(restaurantId)).emit(evenement, formaterCommandeCuisine(commande))
+  // Un admin présent dans plusieurs salles ne reçoit l'événement qu'une fois. Chaque écran filtre ensuite son poste.
+  io.to(salles.cuisine(restaurantId)).to(salles.bar(restaurantId)).to(salles.serveur(restaurantId))
+    .emit(evenement, formaterCommandeCuisine(commande))
   // La table ne reçoit que les changements de ses propres commandes, au format public (§9).
   if (evenement !== 'commande:nouvelle') {
     io.to(salles.table(restaurantId, commande.table.id)).emit(evenement, formaterCommande(commande))

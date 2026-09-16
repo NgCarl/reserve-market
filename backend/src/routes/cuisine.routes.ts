@@ -8,7 +8,7 @@ import { annulationLigneSchema, statutLignesSchema, urgenceSchema } from '../sch
 const router = Router()
 
 // Écran cuisine et bar. L'admin y a accès pour superviser le service.
-router.use(authentifier, exigerRole('CUISINE', 'ADMIN'))
+router.use(authentifier, exigerRole('CUISINE', 'BAR', 'ADMIN'))
 
 router.get('/commandes', listerCommandes)
 router.patch('/commandes/urgence', validerBody(urgenceSchema), changerUrgence)

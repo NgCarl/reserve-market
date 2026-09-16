@@ -1,1 +1,0 @@
-var e={ADMIN:`Administrateur`,CUISINE:`Cuisine / bar`,SERVEUR:`Serveur`};export{e as t};

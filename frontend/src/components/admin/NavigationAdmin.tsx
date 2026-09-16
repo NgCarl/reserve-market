@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, Layers, LayoutDashboard, QrCode, Users, UtensilsCrossed, Wallet } from 'lucide-react'
+import { ChefHat, ClipboardList, ConciergeBell, Layers, LayoutDashboard, QrCode, Users, UtensilsCrossed, Wallet } from 'lucide-react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +28,13 @@ const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: 
     ],
   },
   { titre: 'Équipe', liens: [{ vers: '/admin/personnel', libelle: 'Personnel', Icone: Users }] },
-  { titre: 'Service', liens: [{ vers: '/cuisine', libelle: 'Écran cuisine', Icone: ChefHat }] },
+  {
+    titre: 'Service',
+    liens: [
+      { vers: '/cuisine', libelle: 'Écran cuisine', Icone: ChefHat },
+      { vers: '/serveur', libelle: 'Espace serveur', Icone: ConciergeBell },
+    ],
+  },
 ]
 
 interface Props {

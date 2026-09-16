@@ -1,15 +1,16 @@
-import { Check, ChefHat, ConciergeBell } from 'lucide-react'
+import { Check, ChefHat, ConciergeBell, Martini } from 'lucide-react'
 import { useState } from 'react'
 import { messageErreur, requeteApi } from '@/lib/api'
 import { classeChamp, REGLES_MOT_DE_PASSE } from '@/lib/formulaire'
 import { cn } from '@/lib/utils'
 import { ChampMotDePasse } from './ChampMotDePasse'
 
-type Poste = 'CUISINE' | 'SERVEUR'
+type Poste = 'CUISINE' | 'BAR' | 'SERVEUR'
 
 // Jamais « Administrateur » : ce rôle ne s'attribue que depuis le back-office.
 const POSTES: { valeur: Poste; libelle: string; Icone: typeof ChefHat }[] = [
-  { valeur: 'CUISINE', libelle: 'Cuisine ou bar', Icone: ChefHat },
+  { valeur: 'CUISINE', libelle: 'Cuisine', Icone: ChefHat },
+  { valeur: 'BAR', libelle: 'Bar', Icone: Martini },
   { valeur: 'SERVEUR', libelle: 'Serveur', Icone: ConciergeBell },
 ]
 
@@ -133,7 +134,7 @@ export function FormulaireInscription({ onAllerConnexion }: Props) {
 
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm font-medium text-marque-nuit">Votre poste</legend>
-        <div className="grid grid-cols-2 gap-3" role="radiogroup">
+        <div className="grid grid-cols-3 gap-2.5" role="radiogroup">
           {POSTES.map(({ valeur, libelle, Icone }) => (
             <button
               key={valeur}
@@ -142,7 +143,7 @@ export function FormulaireInscription({ onAllerConnexion }: Props) {
               aria-checked={poste === valeur}
               onClick={() => setPoste(valeur)}
               className={cn(
-                'flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl border-2 text-[15px] font-semibold transition-colors',
+                'flex h-20 flex-col items-center justify-center gap-1.5 rounded-xl border-2 text-sm font-semibold transition-colors',
                 poste === valeur ? 'border-primary bg-primary/5 text-primary' : 'border-border text-marque-nuit',
               )}
             >

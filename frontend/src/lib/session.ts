@@ -5,7 +5,9 @@ import { CLES_PERSONNEL, effacerCache } from './cacheLocal'
 
 const ACCUEIL: Record<Role, string> = {
   ADMIN: '/admin',
+  // Cuisine et bar partagent le même écran : chacun n'y voit que son poste (§10).
   CUISINE: '/cuisine',
+  BAR: '/cuisine',
   SERVEUR: '/serveur',
 }
 

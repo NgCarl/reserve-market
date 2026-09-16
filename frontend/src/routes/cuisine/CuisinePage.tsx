@@ -13,6 +13,7 @@ import { construireCartes, cumulerArticles, filtrerCartes, type CarteTable, type
 import { deverrouillerSon, jouerCarillon } from '@/lib/son'
 import { cn } from '@/lib/utils'
 import type { CommandeCuisine, Poste } from '@/types/cuisine'
+import type { Role } from '@/types/utilisateur'
 import type { chargerCuisine } from './cuisine.loader'
 
 const FILTRES: { valeur: Filtre; libelle: string }[] = [
@@ -23,9 +24,10 @@ const FILTRES: { valeur: Filtre; libelle: string }[] = [
 ]
 
 // Deux files distinctes dès l'arrivée (§10), à la place des colonnes « Dine-In » et « Takeaway » de FoodScan.
-const POSTES: { poste: Poste; libelle: string }[] = [
-  { poste: 'CUISINE', libelle: 'Cuisine' },
-  { poste: 'BAR', libelle: 'Bar' },
+// Le cuisinier ne voit que les plats, le barman que les boissons ; l'admin garde les deux files sous les yeux.
+const POSTES: { poste: Poste; libelle: string; roles: Role[] }[] = [
+  { poste: 'CUISINE', libelle: 'Cuisine', roles: ['CUISINE', 'ADMIN'] },
+  { poste: 'BAR', libelle: 'Bar', roles: ['BAR', 'ADMIN'] },
 ]
 
 const enJson = (method: string, corps: unknown): RequestInit => ({
@@ -48,6 +50,7 @@ export function CuisinePage() {
   const [carteOccupee, setCarteOccupee] = useState<string | null>(null)
   const [aAnnuler, setAAnnuler] = useState<ArticleAAnnuler | null>(null)
 
+  const postesVisibles = POSTES.filter(({ roles }) => roles.includes(utilisateur.role))
   const cartes = useMemo(() => construireCartes(commandes), [commandes])
   const visibles = useMemo(() => filtrerCartes(cartes, filtre, recherche), [cartes, filtre, recherche])
   const articles = useMemo(() => cumulerArticles(commandes), [commandes])
@@ -164,8 +167,8 @@ export function CuisinePage() {
             </div>
           )}
 
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            {POSTES.map(({ poste, libelle }) => {
+          <div className={cn('grid items-start gap-4', postesVisibles.length > 1 && 'lg:grid-cols-2')}>
+            {postesVisibles.map(({ poste, libelle }) => {
               const cartesDuPoste = visibles.filter((carte) => carte.poste === poste)
               return (
                 <section key={poste} className="rounded-xl bg-white shadow-[0_1px_3px_rgba(3,40,66,0.06)]" aria-label={libelle}>
