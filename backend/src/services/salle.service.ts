@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import { DUREE_SERVICE_MS, formaterAppel, selectAppel, type AppelSalle } from './appel.service.js'
 import { diffuser, diffuserAppelTraite } from './diffusion.service.js'
+import { numeroMarchand } from './paiement.service.js'
 
 // Service en salle, sur le téléphone du serveur : servir, encaisser, répondre aux appels (§6, §7).
 
@@ -44,7 +45,8 @@ const EN_COURS: readonly StatutLigne[] = ['RECUE', 'EN_PREPARATION']
  */
 export async function etatSalle(restaurantId: number) {
   const depuis = new Date(Date.now() - DUREE_SERVICE_MS)
-  const [tables, commandes, appels] = await Promise.all([
+  const [restaurant, tables, commandes, appels] = await Promise.all([
+    prisma.restaurant.findUniqueOrThrow({ where: { id: restaurantId }, select: { numeroOrangeMoney: true, numeroMtnMomo: true } }),
     prisma.table.findMany({ where: { restaurantId, actif: true }, orderBy: { numero: 'asc' }, select: { id: true, numero: true, nombreChaises: true } }),
     prisma.commande.findMany({
       where: { restaurantId, encaisseeAt: null, createdAt: { gte: depuis } },
@@ -71,7 +73,12 @@ export async function etatSalle(restaurantId: number) {
     }
   }
 
-  const appelsFormates: AppelSalle[] = appels.map((appel) => formaterAppel(appel, parTable.get(appel.table.id)?.total ?? 0))
+  const numeros = new Map(await Promise.all(appels.map(async (appel) => [
+    appel.id,
+    appel.modePaiement ? await numeroMarchand(restaurantId, appel.modePaiement) : null,
+  ] as const)))
+  const appelsFormates: AppelSalle[] = appels.map((appel) =>
+    formaterAppel(appel, parTable.get(appel.table.id)?.total ?? 0, numeros.get(appel.id) ?? null))
   const tablesActives = [...parTable.values()]
     .map((entree) => ({
       table: entree.table,
@@ -86,7 +93,7 @@ export async function etatSalle(restaurantId: number) {
     // Les tables qui appellent d'abord, puis celles qui ont des plats prêts, puis par numéro.
     .sort((a, b) => b.appels.length - a.appels.length || b.aServir.length - a.aServir.length || a.table.numero - b.table.numero)
 
-  return { appels: appelsFormates, tables: tablesActives, toutesLesTables: tables }
+  return { restaurant, appels: appelsFormates, tables: tablesActives, toutesLesTables: tables }
 }
 
 export async function servirLignes(restaurantId: number, serveurId: number, ligneIds: readonly number[]): Promise<void> {

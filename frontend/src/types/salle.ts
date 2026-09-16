@@ -21,6 +21,8 @@ export interface AppelSalle {
   table: { id: number; numero: number }
   /** Addition : montant à régler. */
   montant: number | null
+  /** Numéro marchand à créditer (Orange Money, MTN MoMo). */
+  numeroPaiement: string | null
 }
 
 export interface LigneSalle {
@@ -49,6 +51,8 @@ export interface TableSalle {
 }
 
 export interface EtatSalle {
+  /** Numéros marchands à donner au client qui règle par Mobile Money. */
+  restaurant: { numeroOrangeMoney: string | null; numeroMtnMomo: string | null }
   appels: AppelSalle[]
   tables: TableSalle[]
   toutesLesTables: TableServeur[]

@@ -3,7 +3,16 @@ import type { StatutCommande } from './commande'
 import type { Poste } from './cuisine'
 
 export type SourceCommande = 'CLIENT' | 'SERVEUR'
-export type ModePaiement = 'ESPECES' | 'MOBILE_MONEY'
+export type ModePaiement = 'ESPECES' | 'ORANGE_MONEY' | 'MTN_MOMO' | 'CARTE'
+
+/** Réglages du restaurant, dont les numéros marchands Mobile Money. */
+export interface ReglagesRestaurant {
+  nom: string
+  telephone: string | null
+  adresse: string | null
+  numeroOrangeMoney: string | null
+  numeroMtnMomo: string | null
+}
 
 export interface CommandeResume {
   id: number

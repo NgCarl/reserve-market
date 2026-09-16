@@ -6,7 +6,8 @@ const identifiantsSchema = z
   .max(100, { error: '100 articles maximum' })
   .refine((ids) => new Set(ids).size === ids.length, { error: 'Identifiant en double' })
 
-const modePaiementSchema = z.enum(['ESPECES', 'MOBILE_MONEY'], { error: 'Mode de paiement attendu : espèces ou Mobile Money' })
+// MOBILE_MONEY reste dans l'enum de la base pour les anciennes commandes, mais n'est plus accepté en entrée.
+const modePaiementSchema = z.enum(['ESPECES', 'ORANGE_MONEY', 'MTN_MOMO'], { error: 'Mode de paiement attendu : espèces, Orange Money ou MTN MoMo' })
 
 /** « Servi » : validé par le serveur, jamais par la cuisine (§6). */
 export const lignesServiesSchema = z.strictObject({

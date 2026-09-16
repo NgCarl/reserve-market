@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router'
 import { exigerSession, requeteStaff } from '@/lib/session'
 import type { CategorieAdmin, PlatAdmin } from '@/types/carte'
-import type { CommandeAdmin, CommandeResume, TableauDeBord } from '@/types/gestion'
+import type { CommandeAdmin, CommandeResume, ReglagesRestaurant, TableauDeBord } from '@/types/gestion'
 import type { RestaurantInfos, TableAdmin } from '@/types/table'
 import type { Personnel } from '@/types/utilisateur'
 
@@ -39,6 +39,10 @@ export async function chargerCommandesJour({ request }: LoaderFunctionArgs) {
 
 export function chargerCommandeAdmin({ request, params }: LoaderFunctionArgs) {
   return requeteStaff<{ commande: CommandeAdmin }>(request, `/gestion/commandes/${encodeURIComponent(params.commandeId ?? '')}`)
+}
+
+export function chargerReglages({ request }: LoaderFunctionArgs) {
+  return requeteStaff<{ restaurant: ReglagesRestaurant }>(request, '/gestion/restaurant')
 }
 
 export async function chargerPersonnel({ request }: LoaderFunctionArgs) {

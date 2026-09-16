@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, LayoutDashboard, Layers, QrCode, Users, UtensilsCrossed } from 'lucide-react'
+import { ChefHat, ClipboardList, Layers, LayoutDashboard, QrCode, Users, UtensilsCrossed, Wallet } from 'lucide-react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +13,13 @@ const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: 
       { vers: '/admin/commandes', libelle: 'Commandes du jour', Icone: ClipboardList },
     ],
   },
-  { titre: 'Restaurant', liens: [{ vers: '/admin/tables', libelle: 'Tables et QR codes', Icone: QrCode }] },
+  {
+    titre: 'Restaurant',
+    liens: [
+      { vers: '/admin/tables', libelle: 'Tables et QR codes', Icone: QrCode },
+      { vers: '/admin/reglages', libelle: 'Paiement', Icone: Wallet },
+    ],
+  },
   {
     titre: 'Carte',
     liens: [

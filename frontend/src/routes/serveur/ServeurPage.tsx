@@ -9,6 +9,7 @@ import { useMaintenant } from '@/hooks/useMaintenant'
 import { useSalle } from '@/hooks/useSalle'
 import { ErreurApi, enJson, messageErreur, requeteApi } from '@/lib/api'
 import { formaterPrix } from '@/lib/format'
+import { LIBELLES_PAIEMENT } from '@/lib/paiement'
 import { deverrouillerSon, jouerCarillon } from '@/lib/son'
 import { COULEURS_STATUT, LIBELLES_STATUT } from '@/lib/statut'
 import { cn } from '@/lib/utils'
@@ -151,7 +152,7 @@ export function ServeurPage() {
                     <p className="text-lg font-bold text-marque-nuit">Table {appel.table.numero}</p>
                     <p className="text-sm text-marque-nuit/80">
                       {addition
-                        ? `Demande l'addition · ${appel.modePaiement === 'MOBILE_MONEY' ? 'Mobile Money' : 'espèces'}${appel.montant !== null ? ` · ${formaterPrix(appel.montant)}` : ''}`
+                        ? `Demande l'addition · ${appel.modePaiement ? LIBELLES_PAIEMENT[appel.modePaiement] : ''}${appel.montant !== null ? ` · ${formaterPrix(appel.montant)}` : ''}`
                         : 'Appelle le serveur'}
                       {` · ${minutes === 0 ? "à l'instant" : `il y a ${minutes} min`}`}
                     </p>
@@ -321,6 +322,7 @@ export function ServeurPage() {
       <DialogueEncaissement
         key={aEncaisser?.table.table.id ?? 'aucune'}
         cible={aEncaisser}
+        numeros={salle.restaurant}
         onFermer={() => setAEncaisser(null)}
         onEncaisse={(message) => {
           setAEncaisser(null)

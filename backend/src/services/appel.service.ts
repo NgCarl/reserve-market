@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError } from '../lib/errors.js'
 import { prisma } from '../lib/prisma.js'
 import type { DemandeAppel } from '../schemas/salle.schema.js'
 import { diffuserAppel } from './diffusion.service.js'
+import { prestataire } from './paiement.service.js'
 
 /** Même fenêtre que le suivi client : l'addition porte sur les commandes non encaissées des 12 dernières heures. */
 export const DUREE_SERVICE_MS = 12 * 60 * 60 * 1000
@@ -26,15 +27,18 @@ export interface AppelSalle {
   table: { id: number; numero: number }
   /** Addition : montant à régler au moment de l'appel. */
   montant: number | null
+  /** Numéro marchand à créditer (Orange Money, MTN MoMo), pour l'afficher au client et au serveur. */
+  numeroPaiement: string | null
 }
 
-export const formaterAppel = (appel: AppelBrut, montant: number | null): AppelSalle => ({
+export const formaterAppel = (appel: AppelBrut, montant: number | null, numeroPaiement: string | null = null): AppelSalle => ({
   id: appel.id,
   type: appel.type,
   modePaiement: appel.modePaiement,
   creeLe: appel.createdAt.toISOString(),
   table: appel.table,
   montant: appel.type === 'ADDITION' ? montant : null,
+  numeroPaiement,
 })
 
 /** Addition d'une table : ses commandes non encaissées du service, hors articles annulés. */
@@ -75,7 +79,9 @@ export async function appelerDepuisTable(jeton: string, demande: DemandeAppel): 
       select: selectAppel,
     })
 
-  const resultat = formaterAppel(appel, montant)
+  // Paiement constaté par le serveur (§6) : on ne fait qu'indiquer où envoyer l'argent.
+  const instructions = modePaiement ? await prestataire.instructions(table.restaurantId, modePaiement, montant ?? 0) : null
+  const resultat = formaterAppel(appel, montant, instructions?.numero ?? null)
   diffuserAppel(table.restaurantId, resultat)
   return resultat
 }

@@ -49,6 +49,12 @@ enum SourceCommande {
 
 enum ModePaiement {
   ESPECES
+  ORANGE_MONEY
+  MTN_MOMO
+  /// Prévue par l'abstraction de paiement, proposée au client quand un prestataire sera branché (§4).
+  CARTE
+  /// Héritée des commandes d'avant le 2026-09-16, quand le Mobile Money n'était pas détaillé par opérateur.
+  /// Conservée pour ne pas casser le site en ligne pendant le déploiement ; l'application ne l'écrit plus.
   MOBILE_MONEY
 }
 
@@ -58,12 +64,15 @@ enum TypeAppel {
 }
 
 model Restaurant {
-  id        Int      @id @default(autoincrement())
-  nom       String
-  telephone String?
-  adresse   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  nom               String
+  telephone         String?
+  adresse           String?
+  /// Numéros marchands affichés au client qui paie par Mobile Money, et au serveur qui encaisse.
+  numeroOrangeMoney String?
+  numeroMtnMomo     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   utilisateurs Utilisateur[]
   tables       Table[]
@@ -169,10 +178,10 @@ model Plat {
 
 /// Choix unique obligatoire, par exemple « Taille » (Variation chez FoodScan).
 model GroupeVariante {
-  id     Int    @id @default(autoincrement())
-  platId Int
-  nom    String
-  ordre  Int    @default(0)
+  id        Int             @id @default(autoincrement())
+  platId    Int
+  nom       String
+  ordre     Int             @default(0)
   affichage AffichageGroupe @default(TUILES)
 
   plat    Plat             @relation(fields: [platId], references: [id])
@@ -183,14 +192,14 @@ model GroupeVariante {
 }
 
 model OptionVariante {
-  id         Int    @id @default(autoincrement())
-  groupeId   Int
-  nom        String
+  id            Int     @id @default(autoincrement())
+  groupeId      Int
+  nom           String
   /// Ajouté au prix de base du plat. 0 pour l'option de base.
-  supplement Int    @default(0)
+  supplement    Int     @default(0)
   /// Photo de l'option (Cloudinary), affichée dans sa tuile : parfum vanille, chocolat…
   imagePublicId String?
-  ordre      Int    @default(0)
+  ordre         Int     @default(0)
 
   groupe GroupeVariante @relation(fields: [groupeId], references: [id], onDelete: Cascade)
 

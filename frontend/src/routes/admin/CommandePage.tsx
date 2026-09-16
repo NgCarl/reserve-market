@@ -1,14 +1,15 @@
 import { ArrowLeft, CalendarClock, Flame, MapPin, ShoppingBag, Smartphone, UserRound } from 'lucide-react'
+import { LIBELLES_PAIEMENT } from '@/lib/paiement'
 import { useLoaderData, useNavigate } from 'react-router'
 import { PastillePoste } from '@/components/admin/PastillePoste'
 import { formaterPrix } from '@/lib/format'
 import { dateLongue, heureRestaurant, jourRestaurant } from '@/lib/journee'
 import { COULEURS_STATUT, LIBELLES_STATUT } from '@/lib/statut'
 import { cn } from '@/lib/utils'
-import type { CommandeAdmin, LigneAdmin, ModePaiement } from '@/types/gestion'
+import type { CommandeAdmin, LigneAdmin } from '@/types/gestion'
 import type { chargerCommandeAdmin } from './admin.loader'
 
-const MODES: Record<ModePaiement, string> = { ESPECES: 'Espèces', MOBILE_MONEY: 'Mobile Money' }
+
 
 const heure = (iso: string): string => heureRestaurant.format(new Date(iso))
 
@@ -167,7 +168,7 @@ export function CommandePage() {
             <dl className="flex flex-col gap-2 text-[15px]">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Mode</dt>
-                <dd className="text-marque-nuit">{commande.paiement.mode ? MODES[commande.paiement.mode] : 'Pas encore indiqué'}</dd>
+                <dd className="text-marque-nuit">{commande.paiement.mode ? LIBELLES_PAIEMENT[commande.paiement.mode] : 'Pas encore indiqué'}</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-muted-foreground">Encaissement</dt>

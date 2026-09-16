@@ -73,7 +73,7 @@ Content-Type: application/json
 
 {
   "type": "ADDITION",
-  "modePaiement": "MOBILE_MONEY"
+  "modePaiement": "ORANGE_MONEY"
 }
 
 ### Serveur : état de la salle (compte SERVEUR ou ADMIN)

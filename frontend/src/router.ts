@@ -240,6 +240,19 @@ export const router = createBrowserRouter([
         ErrorBoundary: PageErreur,
       },
       {
+        path: 'reglages',
+        handle: { fil: [{ libelle: 'Paiement' }] },
+        HydrateFallback: PageChargement,
+        lazy: async () => {
+          const [{ ReglagesPage }, { chargerReglages }] = await Promise.all([
+            import('@/routes/admin/ReglagesPage'),
+            import('@/routes/admin/admin.loader'),
+          ])
+          return { Component: ReglagesPage, loader: chargerReglages }
+        },
+        ErrorBoundary: PageErreur,
+      },
+      {
         path: 'personnel',
         handle: { fil: [{ libelle: 'Personnel' }] },
         HydrateFallback: PageChargement,

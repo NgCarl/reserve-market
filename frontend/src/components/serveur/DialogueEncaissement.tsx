@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { enJson, messageErreur, requeteApi } from '@/lib/api'
 import { formaterPrix } from '@/lib/format'
+import { formaterNumero, LIBELLES_PAIEMENT, MOYENS_SERVEUR } from '@/lib/paiement'
 import { cn } from '@/lib/utils'
 import type { ModePaiement } from '@/types/gestion'
 import type { TableSalle } from '@/types/salle'
@@ -15,21 +16,25 @@ export interface CibleEncaissement {
 
 interface Props {
   cible: CibleEncaissement | null
+  /** Numéros marchands du restaurant, à lire au client qui paie par Mobile Money. */
+  numeros: { numeroOrangeMoney: string | null; numeroMtnMomo: string | null }
   onFermer: () => void
   onEncaisse: (message: string) => void
 }
 
-const MODES: { valeur: ModePaiement; libelle: string; Icone: typeof Banknote }[] = [
-  { valeur: 'ESPECES', libelle: 'Espèces', Icone: Banknote },
-  { valeur: 'MOBILE_MONEY', libelle: 'Mobile Money', Icone: Smartphone },
-]
+const ICONES: Record<(typeof MOYENS_SERVEUR)[number], typeof Banknote> = {
+  ESPECES: Banknote,
+  ORANGE_MONEY: Smartphone,
+  MTN_MOMO: Smartphone,
+}
 
 /** Encaissement d'une table, à valider seulement une fois l'argent reçu (§6). À rendre avec une key par table. */
-export function DialogueEncaissement({ cible, onFermer, onEncaisse }: Props) {
+export function DialogueEncaissement({ cible, numeros, onFermer, onEncaisse }: Props) {
   const [mode, setMode] = useState<ModePaiement | null>(cible?.mode ?? null)
   const [enCours, setEnCours] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const nonServis = cible ? cible.table.enCours.length + cible.table.aServir.length : 0
+  const numeroAttendu = mode === 'ORANGE_MONEY' ? numeros.numeroOrangeMoney : mode === 'MTN_MOMO' ? numeros.numeroMtnMomo : null
 
   const confirmer = async () => {
     if (!cible || !mode || enCours) return
@@ -40,7 +45,7 @@ export function DialogueEncaissement({ cible, onFermer, onEncaisse }: Props) {
         `/serveur/tables/${cible.table.table.id}/encaissement`,
         enJson('POST', { modePaiement: mode }),
       )
-      onEncaisse(`Table ${cible.table.table.numero} encaissée : ${formaterPrix(encaissement.montant)} ${mode === 'ESPECES' ? 'en espèces' : 'par Mobile Money'}.`)
+      onEncaisse(`Table ${cible.table.table.numero} encaissée : ${formaterPrix(encaissement.montant)} (${LIBELLES_PAIEMENT[mode]}).`)
     } catch (probleme) {
       setErreur(messageErreur(probleme, 'Encaissement impossible. Réessayez.'))
       setEnCours(false)
@@ -67,24 +72,33 @@ export function DialogueEncaissement({ cible, onFermer, onEncaisse }: Props) {
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-semibold text-marque-nuit">Mode de paiement</legend>
           <div className="grid grid-cols-2 gap-3" role="radiogroup">
-            {MODES.map(({ valeur, libelle, Icone }) => (
-              <button
-                key={valeur}
-                type="button"
-                role="radio"
-                aria-checked={mode === valeur}
-                onClick={() => setMode(valeur)}
-                className={cn(
-                  'flex h-16 flex-col items-center justify-center gap-1 rounded-xl border-2 font-semibold transition-colors',
-                  mode === valeur ? 'border-primary bg-primary/5 text-primary' : 'border-border text-marque-nuit',
-                )}
-              >
-                <Icone className="size-5" />
-                {libelle}
-              </button>
-            ))}
+            {MOYENS_SERVEUR.map((valeur) => {
+              const Icone = ICONES[valeur]
+              return (
+                <button
+                  key={valeur}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === valeur}
+                  onClick={() => setMode(valeur)}
+                  className={cn(
+                    'flex h-16 flex-col items-center justify-center gap-1 rounded-xl border-2 font-semibold transition-colors',
+                    mode === valeur ? 'border-primary bg-primary/5 text-primary' : 'border-border text-marque-nuit',
+                  )}
+                >
+                  <Icone className="size-5" />
+                  {LIBELLES_PAIEMENT[valeur]}
+                </button>
+              )
+            })}
           </div>
         </fieldset>
+
+        {numeroAttendu && (
+          <p className="rounded-lg bg-tuile px-3.5 py-2.5 text-sm text-marque-nuit">
+            Le client envoie au numéro <span className="font-bold select-all">{formaterNumero(numeroAttendu)}</span>. Validez seulement après avoir vu l'argent arriver.
+          </p>
+        )}
 
         {erreur && <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm font-medium text-red-700">{erreur}</p>}
 
