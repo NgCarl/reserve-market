@@ -4,8 +4,8 @@ import { persist } from 'zustand/middleware'
 /** Liste : une colonne, photo à gauche. Grille : deux colonnes, photo en haut (comme FoodScan). */
 export type Disposition = 'liste' | 'grille'
 
-/** « auto » : photos masquées seulement si le téléphone annonce une connexion lente (CLAUDE.md §8). */
-export type Photos = 'auto' | 'oui' | 'non'
+/** Photos de la carte : affichées par défaut, le client peut les couper pour économiser sa data. */
+export type Photos = 'oui' | 'non'
 
 interface Preferences {
   disposition: Disposition
@@ -18,7 +18,7 @@ export const usePreferences = create<Preferences>()(
   persist(
     (set) => ({
       disposition: 'liste',
-      photos: 'auto',
+      photos: 'oui',
       choisirDisposition: (disposition) => set({ disposition }),
       choisirPhotos: (photos) => set({ photos }),
     }),
@@ -32,7 +32,8 @@ export const usePreferences = create<Preferences>()(
         return {
           ...courant,
           ...(disposition === 'liste' || disposition === 'grille' ? { disposition } : {}),
-          ...(photos === 'auto' || photos === 'oui' || photos === 'non' ? { photos } : {}),
+          // « auto » vient des versions précédentes : il vaut désormais « oui ».
+          ...(photos === 'oui' || photos === 'non' ? { photos } : {}),
         }
       },
     },

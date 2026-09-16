@@ -9,7 +9,6 @@ import { OngletsCategories } from '@/components/menu/OngletsCategories'
 import { PanierSheet } from '@/components/menu/PanierSheet'
 import { formaterPrix } from '@/lib/format'
 import { idSection } from '@/lib/menu'
-import { reseauLent } from '@/lib/reseau'
 import { normaliser } from '@/lib/texte'
 import { cn } from '@/lib/utils'
 import { nombreArticles, totalPanier, usePanier } from '@/stores/panier'
@@ -63,11 +62,11 @@ export function MenuPage() {
   const [recherche, setRecherche] = useState('')
   const [platOuvert, setPlatOuvert] = useState<PlatMenu | null>(null)
   const [panierOuvert, setPanierOuvert] = useState(false)
-  // Réseau lent ou économiseur de données : menu texte automatique (CLAUDE.md §8), que le client peut forcer.
-  const [reseauMenage] = useState(reseauLent)
+  // Photos toujours affichées, même sur un réseau lent (décision du 2026-09-16) : elles vendent les plats.
+  // Le client garde la main pour les couper et économiser sa data.
   const photos = usePreferences((etat) => etat.photos)
   const choisirPhotos = usePreferences((etat) => etat.choisirPhotos)
-  const afficherPhotos = photos === 'auto' ? !reseauMenage : photos === 'oui'
+  const afficherPhotos = photos === 'oui'
   const disposition = usePreferences((etat) => etat.disposition)
   const choisirDisposition = usePreferences((etat) => etat.choisirDisposition)
   const lignes = usePanier((etat) => etat.lignes)
@@ -131,16 +130,6 @@ export function MenuPage() {
           ))}
         </div>
       </div>
-
-      {!afficherPhotos && photos === 'auto' && (
-        <p className="mx-4 mt-1 flex items-center gap-2 rounded-xl bg-tuile px-3.5 py-2 text-sm text-marque-nuit">
-          <ImageOff className="size-4 shrink-0 text-muted-foreground" />
-          <span className="flex-1">Photos masquées pour économiser votre connexion.</span>
-          <button type="button" onClick={() => choisirPhotos('oui')} className="font-semibold text-primary underline">
-            Afficher
-          </button>
-        </p>
-      )}
 
       <main className="flex flex-col gap-7 px-4 pt-3">
         {categories.length === 0 && (
