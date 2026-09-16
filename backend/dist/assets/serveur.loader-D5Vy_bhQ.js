@@ -1,1 +1,0 @@
-import{o as e}from"./index-Cd3ZYeTP.js";import{t}from"./ecranPersonnel-DpsV35WA.js";function n({request:n}){return t(n,`salle`,[`SERVEUR`,`ADMIN`],()=>e(n,`/serveur/salle`))}function r({request:n}){return t(n,`menu-serveur`,[`SERVEUR`,`ADMIN`],()=>e(n,`/serveur/menu`))}export{r as chargerSaisie,n as chargerServeur};

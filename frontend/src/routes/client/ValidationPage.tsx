@@ -1,5 +1,5 @@
-import { ArrowLeft, Wallet } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, Wallet, WifiOff } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { SelecteurQuantite } from '@/components/menu/SelecteurQuantite'
 import { useMenu } from '@/hooks/useMenu'
@@ -12,6 +12,8 @@ import type { CommandeSuivie } from '@/types/commande'
 interface ErreurEnvoi {
   message: string
   indisponibles: number[]
+  /** Échec réseau : l'envoi repartira seul dès que la connexion revient. */
+  attenteReseau: boolean
 }
 
 function indisponiblesDepuis(details: unknown): number[] {
@@ -63,15 +65,35 @@ export function ValidationPage() {
       await navigate(`/menu/${jeton}/commandes/${commande.id}`, { replace: true, state: { confirmee: true } })
       vider()
     } catch (probleme) {
-      // Le panier et sa clé d'idempotence restent inchangés : réessayer ne crée jamais de doublon.
+      // Le panier et sa clé d'idempotence restent inchangés : réessayer ne crée jamais de doublon (§6).
+      const reseau = probleme instanceof ErreurApi && probleme.status === 0
       setErreur(
-        probleme instanceof ErreurApi
-          ? { message: probleme.message, indisponibles: indisponiblesDepuis(probleme.details) }
-          : { message: "L'envoi n'a pas abouti. Réessayez.", indisponibles: [] },
+        reseau
+          ? {
+            message: 'Pas de connexion : votre commande n\'est pas partie. Elle repartira dès le retour du réseau. Sinon, appelez le serveur, il la prendra pour vous.',
+            indisponibles: [],
+            attenteReseau: true,
+          }
+          : probleme instanceof ErreurApi
+            ? { message: probleme.message, indisponibles: indisponiblesDepuis(probleme.details), attenteReseau: false }
+            : { message: "L'envoi n'a pas abouti. Réessayez.", indisponibles: [], attenteReseau: false },
       )
       setEnCours(false)
     }
   }
+
+  // Renvoi automatique au retour du réseau, tant que le client est sur cette page : une commande ne part jamais
+  // toute seule après son départ, et la clé d'idempotence empêche tout doublon.
+  const dernierEnvoi = useRef(envoyer)
+  useEffect(() => {
+    dernierEnvoi.current = envoyer
+  })
+  useEffect(() => {
+    if (!erreur?.attenteReseau) return
+    const reprendre = () => void dernierEnvoi.current()
+    window.addEventListener('online', reprendre)
+    return () => window.removeEventListener('online', reprendre)
+  }, [erreur?.attenteReseau])
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-background">
@@ -151,7 +173,16 @@ export function ValidationPage() {
       {lignes.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-md flex-col gap-3 border-t border-border bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {erreur && (
-            <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">{erreur.message}</p>
+            <p
+              role="alert"
+              className={cn(
+                'flex items-start gap-2 rounded-xl px-4 py-3 text-sm font-medium',
+                erreur.attenteReseau ? 'bg-amber-50 text-amber-900' : 'bg-destructive/10 text-destructive',
+              )}
+            >
+              {erreur.attenteReseau && <WifiOff className="mt-0.5 size-4 shrink-0" />}
+              {erreur.message}
+            </p>
           )}
           <div className="flex items-center justify-between px-1">
             <span className="text-lg font-bold text-marque-nuit">Total</span>
@@ -164,7 +195,13 @@ export function ValidationPage() {
             disabled={chaise === null || enCours}
             className="h-14 w-full rounded-full bg-primary text-lg font-bold text-primary-foreground transition-opacity disabled:opacity-40"
           >
-            {enCours ? 'Envoi en cours…' : chaise === null ? 'Choisissez votre place' : `Envoyer la commande · ${formaterPrix(total)}`}
+            {enCours
+              ? 'Envoi en cours…'
+              : erreur?.attenteReseau
+                ? 'Réessayer maintenant'
+                : chaise === null
+                  ? 'Choisissez votre place'
+                  : `Envoyer la commande · ${formaterPrix(total)}`}
           </button>
         </div>
       )}
