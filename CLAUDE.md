@@ -79,7 +79,8 @@ Menu en local : `http://localhost:5173/menu/<jeton>`. Le jeton de la table 1 est
   - Un squelette en HTML et CSS pur est aussi dans `index.html` : il est visible avant même le téléchargement du JavaScript.
 - **Budget §8, mesuré dans le navigateur** (fichiers réellement chargés par `/menu/:jeton`, gzip niveau 9) : 140,9 Ko de JavaScript (mesure du 2026-09-15, après l'étape 9), dont 92,4 Ko pour l'entrée (surtout React et React Router), environ 30 Ko de morceaux partagés (Radix, utilitaires) et 7,1 Ko pour la page. Le client Socket.io (12,9 Ko) n'est chargé que par le suivi et l'écran cuisine, jamais par le menu. Remesurer après chaque ajout de dépendance côté client : Vite redécoupe les morceaux partagés, la taille d'un seul fichier ne suffit pas.
   - Police du téléphone (Geist retirée), logo WebP de 6 Ko.
-  - Photos chargées au défilement, avec un aperçu flouté (`photoFloueUrl`), et un bouton « sans photos ».
+  - Photos chargées au défilement, avec un aperçu flouté (`photoFloueUrl`).
+  - **Photos masquées automatiquement** (§8) si le téléphone annonce l'économiseur de données ou la 2G (`lib/reseau.ts`). Ce n'est qu'un réglage par défaut : un bouton dans l'en-tête de la carte affiche ou masque les photos, et le choix est gardé sur l'appareil (`stores/preferences.ts`, `photos: 'auto' | 'oui' | 'non'`). Quand elles sont masquées automatiquement, un bandeau « Photos masquées pour économiser votre connexion » propose de les afficher. Sans ce bouton, un client en économiseur de données ne voyait jamais les photos (constaté en ligne le 2026-09-16).
   - Le backend compresse ses réponses en gzip (`compression`).
 - **Panier** (`stores/panier.ts`, Zustand avec `persist`) :
   - Rattaché au jeton de la table ; vérifié quand il est relu depuis le stockage.

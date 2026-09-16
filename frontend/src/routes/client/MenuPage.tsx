@@ -1,4 +1,4 @@
-import { Search, ShoppingBag } from 'lucide-react'
+import { Image, ImageOff, Search, ShoppingBag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { BandeauCommandes } from '@/components/menu/BandeauCommandes'
@@ -63,8 +63,11 @@ export function MenuPage() {
   const [recherche, setRecherche] = useState('')
   const [platOuvert, setPlatOuvert] = useState<PlatMenu | null>(null)
   const [panierOuvert, setPanierOuvert] = useState(false)
-  // Réseau lent ou économiseur de données : menu texte automatique (CLAUDE.md §8).
-  const [afficherPhotos] = useState(() => !reseauLent())
+  // Réseau lent ou économiseur de données : menu texte automatique (CLAUDE.md §8), que le client peut forcer.
+  const [reseauMenage] = useState(reseauLent)
+  const photos = usePreferences((etat) => etat.photos)
+  const choisirPhotos = usePreferences((etat) => etat.choisirPhotos)
+  const afficherPhotos = photos === 'auto' ? !reseauMenage : photos === 'oui'
   const disposition = usePreferences((etat) => etat.disposition)
   const choisirDisposition = usePreferences((etat) => etat.choisirDisposition)
   const lignes = usePanier((etat) => etat.lignes)
@@ -97,7 +100,20 @@ export function MenuPage() {
 
       <div className="flex items-center justify-between px-4 pt-3 pb-1">
         <h1 className="text-3xl font-bold text-primary">Tous les articles</h1>
-        <div className="flex gap-1" role="group" aria-label="Disposition du menu">
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => choisirPhotos(afficherPhotos ? 'non' : 'oui')}
+            aria-pressed={afficherPhotos}
+            aria-label={afficherPhotos ? 'Masquer les photos' : 'Afficher les photos'}
+            title={afficherPhotos ? 'Masquer les photos' : 'Afficher les photos'}
+            className={cn(
+              'flex size-10 items-center justify-center rounded-xl transition-colors',
+              afficherPhotos ? 'text-primary' : 'text-muted-foreground/50',
+            )}
+          >
+            {afficherPhotos ? <Image className="size-5" /> : <ImageOff className="size-5" />}
+          </button>
           {boutonsDisposition.map(({ valeur, libelle, Icone }) => (
             <button
               key={valeur}
@@ -115,6 +131,16 @@ export function MenuPage() {
           ))}
         </div>
       </div>
+
+      {!afficherPhotos && photos === 'auto' && (
+        <p className="mx-4 mt-1 flex items-center gap-2 rounded-xl bg-tuile px-3.5 py-2 text-sm text-marque-nuit">
+          <ImageOff className="size-4 shrink-0 text-muted-foreground" />
+          <span className="flex-1">Photos masquées pour économiser votre connexion.</span>
+          <button type="button" onClick={() => choisirPhotos('oui')} className="font-semibold text-primary underline">
+            Afficher
+          </button>
+        </p>
+      )}
 
       <main className="flex flex-col gap-7 px-4 pt-3">
         {categories.length === 0 && (

@@ -1,1 +1,0 @@
-import{o as e}from"./index-CyvMtV6Q.js";import{t}from"./ecranPersonnel-jUUQP4xG.js";function n({request:n}){return t(n,`salle`,[`SERVEUR`,`ADMIN`],()=>e(n,`/serveur/salle`))}function r({request:n}){return t(n,`menu-serveur`,[`SERVEUR`,`ADMIN`],()=>e(n,`/serveur/menu`))}export{r as chargerSaisie,n as chargerServeur};
