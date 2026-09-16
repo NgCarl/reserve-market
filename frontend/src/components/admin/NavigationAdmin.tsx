@@ -31,7 +31,7 @@ const SECTIONS: { titre: string; liens: { vers: string; libelle: string; Icone: 
   {
     titre: 'Service',
     liens: [
-      { vers: '/cuisine', libelle: 'Écran cuisine', Icone: ChefHat },
+      { vers: '/cuisine', libelle: 'Écran cuisine et bar', Icone: ChefHat },
       { vers: '/serveur', libelle: 'Espace serveur', Icone: ConciergeBell },
     ],
   },

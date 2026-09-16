@@ -50,7 +50,10 @@ export function CuisinePage() {
   const [carteOccupee, setCarteOccupee] = useState<string | null>(null)
   const [aAnnuler, setAAnnuler] = useState<ArticleAAnnuler | null>(null)
 
-  const postesVisibles = POSTES.filter(({ roles }) => roles.includes(utilisateur.role))
+  // L'admin voit les deux files et peut n'en garder qu'une sous les yeux ; cuisine et bar n'ont que la leur.
+  const postesDuRole = POSTES.filter(({ roles }) => roles.includes(utilisateur.role))
+  const [posteChoisi, setPosteChoisi] = useState<'TOUS' | Poste>('TOUS')
+  const postesVisibles = posteChoisi === 'TOUS' ? postesDuRole : postesDuRole.filter(({ poste }) => poste === posteChoisi)
   const cartes = useMemo(() => construireCartes(commandes), [commandes])
   const visibles = useMemo(() => filtrerCartes(cartes, filtre, recherche), [cartes, filtre, recherche])
   const articles = useMemo(() => cumulerArticles(commandes), [commandes])
@@ -145,6 +148,26 @@ export function CuisinePage() {
                 </button>
               ))}
             </div>
+
+            {postesDuRole.length > 1 && (
+              <div className="flex flex-wrap gap-3 border-l border-border pl-3" role="group" aria-label="Filtrer par file">
+                {[{ valeur: 'TOUS' as const, libelle: 'Tout' }, ...postesDuRole.map(({ poste, libelle }) => ({ valeur: poste, libelle }))].map(({ valeur, libelle }) => (
+                  <button
+                    key={valeur}
+                    type="button"
+                    onClick={() => setPosteChoisi(valeur)}
+                    aria-pressed={posteChoisi === valeur}
+                    className={cn(
+                      'h-11 rounded-lg border px-5 text-[15px] font-medium transition-colors sm:px-6',
+                      posteChoisi === valeur ? 'border-primary/15 bg-primary/10 text-primary' : 'border-border bg-white text-marque-nuit hover:bg-tuile',
+                    )}
+                  >
+                    {libelle}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <label className="relative w-full xl:ml-auto xl:w-[305px]">
               <span className="sr-only">Rechercher une commande</span>
               <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" />

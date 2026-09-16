@@ -1,1 +1,0 @@
-import{o as e}from"./index-C7IvJLw9.js";import{t}from"./ecranPersonnel-BAneG135.js";function n({request:n}){return t(n,`cuisine`,[`CUISINE`,`BAR`,`ADMIN`],async()=>(await e(n,`/cuisine/commandes`)).commandes)}export{n as chargerCuisine};

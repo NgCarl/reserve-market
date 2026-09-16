@@ -1,0 +1,1 @@
+import{o as e}from"./index-9WRNTLcH.js";import{t}from"./ecranPersonnel-i3e09WV-.js";function n({request:n}){return t(n,`cuisine`,[`CUISINE`,`BAR`,`ADMIN`],async()=>(await e(n,`/cuisine/commandes`)).commandes)}export{n as chargerCuisine};
